@@ -379,5 +379,6 @@ VM instance. Despite that, the only IP address reported is the IPv6 address,
 which implicitly highly encourages IPv6 communication towards the VM instance.
 
 On a final note, there is a difference that impacts the user experience when
-using masquerade binding for IPv6 addresses; the VMI IP must be [manually
-configured by the user](https://kubevirt.io/user-guide/#/creation/interfaces-and-networks?id=masquerade-ipv6-support).
+using masquerade binding for IPv6 addresses: until we introduce support of IPv6
+[router advertisement](https://github.com/kubevirt/kubevirt/pull/4581),
+the VMI IP must be [manually configured by the user](https://kubevirt.io/user-guide/#/creation/interfaces-and-networks?id=masquerade-ipv4-and-ipv6-dual-stack-support).
