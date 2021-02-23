@@ -232,7 +232,7 @@ var _ = Describe("CloudInit", func() {
 						Expect(err).ToNot(HaveOccurred())
 					}
 
-					vmis, err := listVmWithLocalData()
+					vmis, err := listVmWithLocalData(cloudInitLocalDir)
 					for _, vmi := range vmis {
 						namespace := precond.MustNotBeEmpty(vmi.GetObjectMeta().GetNamespace())
 						domain := precond.MustNotBeEmpty(vmi.GetObjectMeta().GetName())

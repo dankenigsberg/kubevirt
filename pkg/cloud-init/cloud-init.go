@@ -570,7 +570,43 @@ func GenerateLocalData(vmiName string, namespace string, data *CloudInitData) er
 	return nil
 }
 
-// Lists all vmis cloud-init has local data for
-func listVmWithLocalData() ([]*v1.VirtualMachineInstance, error) {
-	return diskutils.ListVmWithEphemeralDisk(cloudInitLocalDir)
+// Lists all vmis ephemeral disk has local data for
+func listVmWithLocalData(localPath string) ([]*v1.VirtualMachineInstance, error) {
+	var keys []*v1.VirtualMachineInstance
+
+	exists, err := diskutils.FileExists(localPath)
+	if err != nil {
+		return nil, err
+	}
+	if exists == false {
+		return nil, nil
+	}
+
+	err = filepath.Walk(localPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() == false {
+			return nil
+		}
+
+		relativePath := strings.TrimPrefix(path, localPath+"/")
+		if relativePath == "" {
+			return nil
+		}
+		dirs := strings.Split(relativePath, "/")
+		if len(dirs) != 2 {
+			return nil
+		}
+
+		namespace := dirs[0]
+		domain := dirs[1]
+		if namespace == "" || domain == "" {
+			return nil
+		}
+		keys = append(keys, v1.NewVMIReferenceFromNameWithNS(namespace, domain))
+		return nil
+	})
+
+	return keys, err
 }
