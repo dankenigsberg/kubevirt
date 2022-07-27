@@ -2675,7 +2675,7 @@ var _ = Describe("[sig-compute]Configurations", func() {
 	Context("[rfe_id:2926][crit:medium][vendor:cnv-qe@redhat.com][level:component]Check Chassis value", func() {
 
 		It("[Serial][test_id:2927]Test Chassis value in a newly created VM", func() {
-			vmi := tests.NewRandomFedoraVMIWithDmidecode()
+			vmi := libvmi.NewFedora()
 			vmi.Spec.Domain.Chassis = &v1.Chassis{
 				Asset: "Test-123",
 			}
@@ -2707,7 +2707,7 @@ var _ = Describe("[sig-compute]Configurations", func() {
 		var vmi *v1.VirtualMachineInstance
 
 		BeforeEach(func() {
-			vmi = tests.NewRandomFedoraVMIWithDmidecode()
+			vmi = libvmi.NewFedora()
 		})
 
 		It("[test_id:2751]test default SMBios", func() {
@@ -2720,9 +2720,7 @@ var _ = Describe("[sig-compute]Configurations", func() {
 			tests.UpdateKubeVirtConfigValueAndWait(config)
 
 			By("Starting a VirtualMachineInstance")
-			vmi, err = virtClient.VirtualMachineInstance(util.NamespaceTestDefault).Create(vmi)
-			Expect(err).ToNot(HaveOccurred())
-			tests.WaitForSuccessfulVMIStart(vmi)
+			vmi = tests.RunVMIAndExpectLaunch(vmi, 360)
 
 			By("Check values in domain XML")
 			domXml, err := tests.GetRunningVirtualMachineInstanceDomainXML(virtClient, vmi)
@@ -2755,9 +2753,7 @@ var _ = Describe("[sig-compute]Configurations", func() {
 			tests.UpdateKubeVirtConfigValueAndWait(config)
 
 			By("Starting a VirtualMachineInstance")
-			vmi, err := virtClient.VirtualMachineInstance(util.NamespaceTestDefault).Create(vmi)
-			Expect(err).ToNot(HaveOccurred())
-			tests.WaitForSuccessfulVMIStart(vmi)
+			vmi = tests.RunVMIAndExpectLaunch(vmi, 360)
 
 			domXml, err := tests.GetRunningVirtualMachineInstanceDomainXML(virtClient, vmi)
 			Expect(err).ToNot(HaveOccurred())
@@ -2789,7 +2785,7 @@ var _ = Describe("[sig-compute]Configurations", func() {
 		var DiskBusIDE v1.DiskBus = "ide"
 
 		BeforeEach(func() {
-			vmi = tests.NewRandomFedoraVMIWithDmidecode()
+			vmi = libvmi.NewFedora()
 		})
 
 		DescribeTable("For various bus types", func(bus v1.DiskBus, errMsg string) {
@@ -2901,7 +2897,7 @@ var _ = Describe("[sig-compute]Configurations", func() {
 				Skip("Skip KVM MSR prescence test on kind")
 			}
 
-			vmi = tests.NewRandomFedoraVMIWithVirtWhatCpuidHelper()
+			vmi = libvmi.NewFedora()
 		})
 
 		It("[test_id:5271]test cpuid hidden", func() {
@@ -2910,9 +2906,7 @@ var _ = Describe("[sig-compute]Configurations", func() {
 			}
 
 			By("Starting a VirtualMachineInstance")
-			vmi, err = virtClient.VirtualMachineInstance(util.NamespaceTestDefault).Create(vmi)
-			Expect(err).ToNot(HaveOccurred())
-			tests.WaitForSuccessfulVMIStart(vmi)
+			vmi = tests.RunVMIAndExpectLaunch(vmi, 360)
 
 			By("Check values in domain XML")
 			domXml, err := tests.GetRunningVirtualMachineInstanceDomainXML(virtClient, vmi)
