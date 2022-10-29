@@ -41,7 +41,7 @@ import (
 
 	virtconfig "kubevirt.io/kubevirt/pkg/virt-config"
 	"kubevirt.io/kubevirt/tests"
-	cd "kubevirt.io/kubevirt/tests/containerdisk"
+	"kubevirt.io/kubevirt/tests/libvmi"
 	"kubevirt.io/kubevirt/tests/util"
 )
 
@@ -61,7 +61,8 @@ var _ = Describe("[sig-compute]Dry-Run requests", func() {
 		resource := "virtualmachineinstances"
 
 		BeforeEach(func() {
-			vmi = tests.NewRandomVMIWithEphemeralDisk(cd.ContainerDiskFor(cd.ContainerDiskAlpine))
+			vmi = libvmi.NewAlpine()
+			vmi.ObjectMeta.Namespace = util.NamespaceTestDefault
 		})
 
 		It("[test_id:7627]create a VirtualMachineInstance", func() {
@@ -138,9 +139,8 @@ var _ = Describe("[sig-compute]Dry-Run requests", func() {
 		resource := "virtualmachines"
 
 		newVM := func() *v1.VirtualMachine {
-			vmiImage := cd.ContainerDiskFor(cd.ContainerDiskCirros)
-			vmi := tests.NewRandomVMIWithEphemeralDiskAndUserdata(vmiImage, "echo Hi\n")
-			vm := tests.NewRandomVirtualMachine(vmi, false)
+			vm := tests.NewRandomVirtualMachine(libvmi.NewCirros(), false)
+			vm.ObjectMeta.Namespace = util.NamespaceTestDefault
 			return vm
 		}
 
@@ -224,7 +224,7 @@ var _ = Describe("[sig-compute]Dry-Run requests", func() {
 		resource := "virtualmachineinstancemigrations"
 
 		BeforeEach(func() {
-			vmi := tests.NewRandomVMIWithEphemeralDisk(cd.ContainerDiskFor(cd.ContainerDiskAlpine))
+			vmi := libvmi.NewAlpine()
 			vmi, err = virtClient.VirtualMachineInstance(vmi.Namespace).Create(vmi)
 			Expect(err).ToNot(HaveOccurred())
 			vmim = tests.NewRandomMigration(vmi.Name, vmi.Namespace)
@@ -546,10 +546,8 @@ var _ = Describe("[sig-compute]Dry-Run requests", func() {
 		BeforeEach(func() {
 			tests.EnableFeatureGate(virtconfig.SnapshotGate)
 
-			vmiImage := cd.ContainerDiskFor(cd.ContainerDiskCirros)
-			vmi := tests.NewRandomVMIWithEphemeralDiskAndUserdata(vmiImage, "echo Hi\n")
-			vm := tests.NewRandomVirtualMachine(vmi, false)
-			_, err := virtClient.VirtualMachine(vm.Namespace).Create(vm)
+			vm := tests.NewRandomVirtualMachine(libvmi.NewCirros(), false)
+			vm, err := virtClient.VirtualMachine(util.NamespaceTestDefault).Create(vm)
 			Expect(err).ToNot(HaveOccurred())
 
 			snap = newVMSnapshot(vm)
@@ -637,10 +635,8 @@ var _ = Describe("[sig-compute]Dry-Run requests", func() {
 		BeforeEach(func() {
 			tests.EnableFeatureGate(virtconfig.SnapshotGate)
 
-			vmiImage := cd.ContainerDiskFor(cd.ContainerDiskCirros)
-			vmi := tests.NewRandomVMIWithEphemeralDiskAndUserdata(vmiImage, "echo Hi\n")
-			vm := tests.NewRandomVirtualMachine(vmi, false)
-			_, err := virtClient.VirtualMachine(vm.Namespace).Create(vm)
+			vm := tests.NewRandomVirtualMachine(libvmi.NewCirros(), false)
+			vm, err := virtClient.VirtualMachine(util.NamespaceTestDefault).Create(vm)
 			Expect(err).ToNot(HaveOccurred())
 
 			snap := newVMSnapshot(vm)
@@ -752,7 +748,8 @@ func newVMIPreset(name, labelKey, labelValue string) *v1.VirtualMachineInstanceP
 }
 
 func newVMIReplicaSet(name string) *v1.VirtualMachineInstanceReplicaSet {
-	vmi := tests.NewRandomVMIWithEphemeralDisk(cd.ContainerDiskFor(cd.ContainerDiskAlpine))
+	vmi := libvmi.NewAlpine()
+	vmi.ObjectMeta.Namespace = util.NamespaceTestDefault
 
 	return &v1.VirtualMachineInstanceReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
