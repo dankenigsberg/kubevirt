@@ -576,13 +576,6 @@ func NewRandomVMIWithDataVolume(dataVolumeName string) *v1.VirtualMachineInstanc
 	return vmi
 }
 
-func NewRandomVMWithEphemeralDisk(containerImage string) *v1.VirtualMachine {
-	vmi := NewRandomVMIWithEphemeralDisk(containerImage)
-	vm := NewRandomVirtualMachine(vmi, false)
-
-	return vm
-}
-
 func NewRandomVMWithDataVolumeWithRegistryImport(imageUrl, namespace, storageClass string, accessMode k8sv1.PersistentVolumeAccessMode) *v1.VirtualMachine {
 	dataVolume := libdv.NewDataVolume(
 		libdv.WithRegistryURLSourceAndPullMethod(imageUrl, cdiv1.RegistryPullNode),
