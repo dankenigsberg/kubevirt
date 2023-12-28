@@ -75,6 +75,7 @@ import (
 	"kubevirt.io/kubevirt/tests/console"
 	cd "kubevirt.io/kubevirt/tests/containerdisk"
 	"kubevirt.io/kubevirt/tests/libdv"
+	"kubevirt.io/kubevirt/tests/libnet"
 	"kubevirt.io/kubevirt/tests/libnode"
 	"kubevirt.io/kubevirt/tests/libstorage"
 	"kubevirt.io/kubevirt/tests/libvmi"
@@ -1349,7 +1350,7 @@ var _ = Describe("[sig-compute]Configurations", decorators.SigCompute, func() {
 				})
 
 				It("[test_id:5267]VMI condition should signal unsupported agent presence", func() {
-					agentVMI := tests.NewRandomFedoraVMIWithBlacklistGuestAgent("guest-shutdown")
+					agentVMI := newFedoraWithoutGuestAgentCommands("guest-shutdown")
 					By("Starting a VirtualMachineInstance")
 					agentVMI, err := virtClient.VirtualMachineInstance(testsuite.GetTestNamespace(agentVMI)).Create(context.Background(), agentVMI)
 					Expect(err).ToNot(HaveOccurred(), "Should create VMI successfully")
@@ -1359,7 +1360,7 @@ var _ = Describe("[sig-compute]Configurations", decorators.SigCompute, func() {
 				})
 
 				It("[test_id:6958]VMI condition should not signal unsupported agent presence for optional commands", func() {
-					agentVMI := tests.NewRandomFedoraVMIWithBlacklistGuestAgent("guest-exec,guest-set-password")
+					agentVMI := newFedoraWithoutGuestAgentCommands("guest-exec,guest-set-password")
 					By("Starting a VirtualMachineInstance")
 					agentVMI, err := virtClient.VirtualMachineInstance(testsuite.GetTestNamespace(agentVMI)).Create(context.Background(), agentVMI)
 					Expect(err).ToNot(HaveOccurred(), "Should create VMI successfully")
@@ -3379,4 +3380,15 @@ func createBlockDataVolume(virtClient kubecli.KubevirtClient) (*cdiv1.DataVolume
 	)
 
 	return virtClient.CdiClient().CdiV1beta1().DataVolumes(testsuite.GetTestNamespace(nil)).Create(context.Background(), dataVolume, metav1.CreateOptions{})
+}
+
+func newFedoraWithoutGuestAgentCommands(commands string) *v1.VirtualMachineInstance {
+	networkData := libnet.CreateDefaultCloudInitNetworkData()
+
+	return libvmi.NewFedora(
+		libvmi.WithInterface(libvmi.InterfaceDeviceWithMasqueradeBinding()),
+		libvmi.WithNetwork(v1.DefaultPodNetwork()),
+		libvmi.WithCloudInitNoCloudUserData(tests.GetFedoraToolsGuestAgentBlacklistUserData(commands)),
+		libvmi.WithCloudInitNoCloudNetworkData(networkData),
+	)
 }
