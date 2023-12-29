@@ -896,10 +896,10 @@ func AddConfigMapDisk(vmi *v1.VirtualMachineInstance, configMapName string, volu
 }
 
 func AddSecretDisk(vmi *v1.VirtualMachineInstance, secretName string, volumeName string) {
-	AddSecretDiskWithCustomLabel(vmi, secretName, volumeName, "")
+	addSecretDiskWithCustomLabel(vmi, secretName, volumeName, "")
 }
 
-func AddSecretDiskWithCustomLabel(vmi *v1.VirtualMachineInstance, secretName string, volumeName string, volumeLabel string) {
+func addSecretDiskWithCustomLabel(vmi *v1.VirtualMachineInstance, secretName string, volumeName string, volumeLabel string) {
 	vmi.Spec.Volumes = append(vmi.Spec.Volumes, v1.Volume{
 		Name: volumeName,
 		VolumeSource: v1.VolumeSource{
