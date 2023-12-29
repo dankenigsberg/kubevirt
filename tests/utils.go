@@ -353,24 +353,6 @@ func GetProcessName(pod *k8sv1.Pod, pid string) (output string, err error) {
 	return
 }
 
-func GetVcpuMask(pod *k8sv1.Pod, emulator, cpu string) (output string, err error) {
-	virtClient := kubevirt.Client()
-
-	pscmd := `ps -LC ` + emulator + ` -o lwp,comm | grep "CPU ` + cpu + `"  | cut -f1 -dC`
-	args := []string{BinBash, "-c", pscmd}
-	Eventually(func() error {
-		output, err = exec.ExecuteCommandOnPod(virtClient, pod, "compute", args)
-		return err
-	}).Should(Succeed())
-	vcpupid := strings.TrimSpace(strings.Trim(output, "\n"))
-	tasksetcmd := "taskset -c -p " + vcpupid + " | cut -f2 -d:"
-	args = []string{BinBash, "-c", tasksetcmd}
-	output, err = exec.ExecuteCommandOnPod(virtClient, pod, "compute", args)
-	Expect(err).ToNot(HaveOccurred())
-
-	return strings.TrimSpace(output), err
-}
-
 func GetKvmPitMask(qemupid, nodeName string) (output string, err error) {
 	kvmpitcomm := "kvm-pit/" + qemupid
 	args := []string{"pgrep", "-f", kvmpitcomm}
