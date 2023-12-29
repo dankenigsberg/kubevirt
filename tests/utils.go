@@ -562,21 +562,6 @@ func NewRandomVMWithDataVolumeAndUserDataInStorageClass(imageUrl, namespace, use
 	return NewRandomVMWithDataVolumeAndUserData(dataVolume, userData)
 }
 
-func NewRandomVMIWithEphemeralDiskAndUserdataHighMemory(containerImage string, userData string) *v1.VirtualMachineInstance {
-	vmi := NewRandomVMIWithEphemeralDiskAndUserdata(containerImage, userData)
-
-	vmi.Spec.Domain.Resources.Requests[k8sv1.ResourceMemory] = resource.MustParse("512M")
-	return vmi
-}
-
-func NewRandomVMIWithEphemeralDiskAndConfigDriveUserdataHighMemory(containerImage string, userData string) *v1.VirtualMachineInstance {
-	vmi := NewRandomVMIWithEphemeralDisk(containerImage)
-	AddCloudInitConfigDriveData(vmi, "disk1", userData, "", false)
-
-	vmi.Spec.Domain.Resources.Requests[k8sv1.ResourceMemory] = resource.MustParse("512M")
-	return vmi
-}
-
 func NewRandomMigration(vmiName string, namespace string) *v1.VirtualMachineInstanceMigration {
 	return &v1.VirtualMachineInstanceMigration{
 		TypeMeta: metav1.TypeMeta{
