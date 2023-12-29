@@ -570,7 +570,8 @@ func NewRandomVMIWithEphemeralDiskAndUserdataHighMemory(containerImage string, u
 }
 
 func NewRandomVMIWithEphemeralDiskAndConfigDriveUserdataHighMemory(containerImage string, userData string) *v1.VirtualMachineInstance {
-	vmi := NewRandomVMIWithEphemeralDiskAndConfigDriveUserdata(containerImage, userData)
+	vmi := NewRandomVMIWithEphemeralDisk(containerImage)
+	AddCloudInitConfigDriveData(vmi, "disk1", userData, "", false)
 
 	vmi.Spec.Domain.Resources.Requests[k8sv1.ResourceMemory] = resource.MustParse("512M")
 	return vmi
@@ -695,12 +696,6 @@ func GetFedoraToolsGuestAgentBlacklistUserData(commands string) string {
 func NewRandomVMIWithEphemeralDiskAndUserdata(containerImage string, userData string) *v1.VirtualMachineInstance {
 	vmi := NewRandomVMIWithEphemeralDisk(containerImage)
 	AddUserData(vmi, "disk1", userData)
-	return vmi
-}
-
-func NewRandomVMIWithEphemeralDiskAndConfigDriveUserdata(containerImage string, userData string) *v1.VirtualMachineInstance {
-	vmi := NewRandomVMIWithEphemeralDisk(containerImage)
-	AddCloudInitConfigDriveData(vmi, "disk1", userData, "", false)
 	return vmi
 }
 
