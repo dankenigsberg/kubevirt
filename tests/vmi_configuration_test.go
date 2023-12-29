@@ -2699,7 +2699,7 @@ var _ = Describe("[sig-compute]Configurations", decorators.SigCompute, func() {
 					if len(pid) == 0 {
 						continue
 					}
-					output, err = tests.GetProcessName(readyPod, pid)
+					output, err = getProcessName(readyPod, pid)
 					if err != nil {
 						getProcessNameErrors++
 						continue
@@ -2732,7 +2732,7 @@ var _ = Describe("[sig-compute]Configurations", decorators.SigCompute, func() {
 				if err != nil {
 					return
 				}
-				kvmpitmask, err := tests.GetKvmPitMask(strings.TrimSpace(qemuPid), node)
+				kvmpitmask, err := getKvmPitMask(strings.TrimSpace(qemuPid), node)
 				Expect(err).ToNot(HaveOccurred())
 
 				vcpuzeromask, err := getVcpuMask(readyPod, emulator, "0")
@@ -3420,16 +3420,45 @@ func getVcpuMask(pod *k8sv1.Pod, emulator, cpu string) (output string, err error
 	virtClient := kubevirt.Client()
 
 	pscmd := `ps -LC ` + emulator + ` -o lwp,comm | grep "CPU ` + cpu + `"  | cut -f1 -dC`
-	args := []string{BinBash, "-c", pscmd}
+	args := []string{"/bin/bash", "-c", pscmd}
 	Eventually(func() error {
 		output, err = exec.ExecuteCommandOnPod(virtClient, pod, "compute", args)
 		return err
 	}).Should(Succeed())
 	vcpupid := strings.TrimSpace(strings.Trim(output, "\n"))
 	tasksetcmd := "taskset -c -p " + vcpupid + " | cut -f2 -d:"
-	args = []string{BinBash, "-c", tasksetcmd}
+	args = []string{"/bin/bash", "-c", tasksetcmd}
 	output, err = exec.ExecuteCommandOnPod(virtClient, pod, "compute", args)
 	Expect(err).ToNot(HaveOccurred())
 
 	return strings.TrimSpace(output), err
+}
+
+func getKvmPitMask(qemupid, nodeName string) (output string, err error) {
+	kvmpitcomm := "kvm-pit/" + qemupid
+	args := []string{"pgrep", "-f", kvmpitcomm}
+	output, err = tests.ExecuteCommandInVirtHandlerPod(nodeName, args)
+	Expect(err).ToNot(HaveOccurred())
+
+	kvmpitpid := strings.TrimSpace(output)
+	tasksetcmd := "taskset -c -p " + kvmpitpid + " | cut -f2 -d:"
+	args = []string{"/bin/bash", "-c", tasksetcmd}
+	output, err = tests.ExecuteCommandInVirtHandlerPod(nodeName, args)
+	Expect(err).ToNot(HaveOccurred())
+
+	return strings.TrimSpace(output), err
+}
+
+func getProcessName(pod *k8sv1.Pod, pid string) (output string, err error) {
+	virtClient := kubevirt.Client()
+
+	fPath := "/proc/" + pid + "/comm"
+	output, err = exec.ExecuteCommandOnPod(
+		virtClient,
+		pod,
+		"compute",
+		[]string{"cat", fPath},
+	)
+
+	return
 }
