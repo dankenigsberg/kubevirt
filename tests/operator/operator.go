@@ -746,7 +746,7 @@ var _ = Describe("[Serial][sig-operator]Operator", Serial, decorators.SigOperato
 					vmi.ObjectMeta.Labels = map[string]string{"downwardTestLabelKey": "downwardTestLabelVal"}
 				}
 				tests.AddLabelDownwardAPIVolume(vmi, downwardAPIName)
-				tests.AddWatchdog(vmi, v1.WatchdogActionPoweroff)
+				addWatchdog(vmi, v1.WatchdogActionPoweroff)
 
 				vmis = append(vmis, vmi)
 			}
@@ -3475,6 +3475,17 @@ func nodeSelectorExistInDeployment(virtClient kubecli.KubevirtClient, deployment
 		return false
 	}
 	return true
+}
+
+func addWatchdog(vmi *v1.VirtualMachineInstance, action v1.WatchdogAction) {
+	vmi.Spec.Domain.Devices.Watchdog = &v1.Watchdog{
+		Name: "watchdog",
+		WatchdogDevice: v1.WatchdogDevice{
+			I6300ESB: &v1.I6300ESBWatchdog{
+				Action: action,
+			},
+		},
+	}
 }
 
 func usesSha(image string) bool {
