@@ -22,11 +22,11 @@ import (
 
 	"kubevirt.io/kubevirt/pkg/libvmi"
 
-	"kubevirt.io/kubevirt/tests"
 	"kubevirt.io/kubevirt/tests/console"
 	"kubevirt.io/kubevirt/tests/framework/matcher"
 	"kubevirt.io/kubevirt/tests/libnet"
 	"kubevirt.io/kubevirt/tests/libnet/vmnetserver"
+	"kubevirt.io/kubevirt/tests/libpod"
 	"kubevirt.io/kubevirt/tests/libvmifact"
 )
 
@@ -59,13 +59,18 @@ var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 		}
 
 		var probeBackendPod *corev1.Pod
+		var err error
 		if isHTTPProbe(*probe) {
 			port := probe.HTTPGet.Port.IntVal
-			probeBackendPod = tests.StartHTTPServerPod(family, int(port))
+			serverCommand := fmt.Sprintf("nc -%d -klp %d --sh-exec 'echo -e \"HTTP/1.1 200 OK\\nContent-Length: 12\\n\\nHello World!\"'", family, port)
+			probeBackendPod = libpod.RenderPrivilegedPod("http-hello-world-server", []string{"/bin/bash"}, []string{"-c", serverCommand})
 		} else {
 			port := probe.TCPSocket.Port.IntVal
-			probeBackendPod = tests.StartTCPServerPod(family, int(port))
+			serverCommand := fmt.Sprintf("nc -%d -klp %d --sh-exec 'echo \"Hello World!\"'", family, port)
+			probeBackendPod = libpod.RenderPrivilegedPod("tcp-hello-world-server", []string{"/bin/bash"}, []string{"-c", serverCommand})
 		}
+		probeBackendPod, err = libpod.Run(probeBackendPod, testsuite.GetTestNamespace(nil))
+		Expect(err).ToNot(HaveOccurred(), "should run pod")
 		return probeBackendPod, func() error {
 			return virtClient.CoreV1().Pods(testsuite.GetTestNamespace(probeBackendPod)).Delete(context.Background(), probeBackendPod.Name, metav1.DeleteOptions{})
 		}
