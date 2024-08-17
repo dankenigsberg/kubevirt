@@ -50,28 +50,28 @@ var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 		virtClient = kubevirt.Client()
 	})
 
-	buildProbeBackendPodSpec := func(ipFamily corev1.IPFamily, probe *v1.Probe) (*corev1.Pod, func() error) {
+	runProbeBackendPod := func(ipFamily corev1.IPFamily, probe *v1.Probe) *corev1.Pod {
 		family := 4
 		if ipFamily == corev1.IPv6Protocol {
 			family = 6
 		}
 
-		var probeBackendPod *corev1.Pod
-		var err error
 		if isHTTPProbe(*probe) {
 			port := probe.HTTPGet.Port.IntVal
 			serverCommand := fmt.Sprintf("nc -%d -klp %d --sh-exec 'echo -e \"HTTP/1.1 200 OK\\nContent-Length: 12\\n\\nHello World!\"'", family, port)
-			probeBackendPod = libpod.RenderPrivilegedPod("http-hello-world-server", []string{"/bin/bash"}, []string{"-c", serverCommand})
+			podname := "http-hello-world-server"
 		} else {
 			port := probe.TCPSocket.Port.IntVal
 			serverCommand := fmt.Sprintf("nc -%d -klp %d --sh-exec 'echo \"Hello World!\"'", family, port)
-			probeBackendPod = libpod.RenderPrivilegedPod("tcp-hello-world-server", []string{"/bin/bash"}, []string{"-c", serverCommand})
+			podname := "tcp-hello-world-server"
 		}
-		probeBackendPod, err = libpod.Run(probeBackendPod, testsuite.GetTestNamespace(nil))
+
+		probeBackendPod, err := libpod.Run(
+			libpod.RenderPrivilegedPod(podname, []string{"/bin/bash"}, []string{"-c", serverCommand}),
+			testsuite.GetTestNamespace(nil),
+		)
 		Expect(err).ToNot(HaveOccurred(), "should run pod")
-		return probeBackendPod, func() error {
-			return virtClient.CoreV1().Pods(testsuite.GetTestNamespace(probeBackendPod)).Delete(context.Background(), probeBackendPod.Name, metav1.DeleteOptions{})
-		}
+		return probeBackendPod
 	}
 
 	Context("for readiness", func() {
@@ -90,10 +90,8 @@ var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 
 			if ipFamily == corev1.IPv6Protocol {
 				By("Create a support pod which will reply to kubelet's probes ...")
-				probeBackendPod, supportPodCleanupFunc := buildProbeBackendPodSpec(ipFamily, readinessProbe)
-				defer func() {
-					Expect(supportPodCleanupFunc()).To(Succeed(), "The support pod responding to the probes should be cleaned-up at test tear-down.")
-				}()
+				probeBackendPod := runProbeBackendPod(ipFamily, readinessProbe)
+				defer deletePod(probeBackendPod)
 
 				By("Attaching the readiness probe to an external pod server")
 				readinessProbe, err = pointIpv6ProbeToSupportPod(probeBackendPod, readinessProbe)
@@ -189,10 +187,8 @@ var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 			if ipFamily == corev1.IPv6Protocol {
 
 				By("Create a support pod which will reply to kubelet's probes ...")
-				probeBackendPod, supportPodCleanupFunc := buildProbeBackendPodSpec(ipFamily, livenessProbe)
-				defer func() {
-					Expect(supportPodCleanupFunc()).To(Succeed(), "The support pod responding to the probes should be cleaned-up at test tear-down.")
-				}()
+				probeBackendPod := runProbeBackendPod(ipFamily, livenessProbe)
+				defer deletePod(probeBackendPod)
 
 				By("Attaching the liveness probe to an external pod server")
 				livenessProbe, err = pointIpv6ProbeToSupportPod(probeBackendPod, livenessProbe)
@@ -378,4 +374,8 @@ func withLivelinessProbe(probe *v1.Probe) libvmi.Option {
 	return func(vmi *v1.VirtualMachineInstance) {
 		vmi.Spec.LivenessProbe = probe
 	}
+}
+
+func deletePod(pod *corev1.Pod) {
+	Expect(kubevirt.Client().CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})).To(Succeed(), "The support pod responding to the probes should be cleaned-up at test tear-down.")
 }
