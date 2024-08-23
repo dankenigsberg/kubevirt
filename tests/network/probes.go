@@ -50,30 +50,6 @@ var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 		virtClient = kubevirt.Client()
 	})
 
-	runProbeBackendPod := func(ipFamily corev1.IPFamily, probe *v1.Probe) *corev1.Pod {
-		family := 4
-		if ipFamily == corev1.IPv6Protocol {
-			family = 6
-		}
-
-		if isHTTPProbe(*probe) {
-			port := probe.HTTPGet.Port.IntVal
-			serverCommand := fmt.Sprintf("nc -%d -klp %d --sh-exec 'echo -e \"HTTP/1.1 200 OK\\nContent-Length: 12\\n\\nHello World!\"'", family, port)
-			podname := "http-hello-world-server"
-		} else {
-			port := probe.TCPSocket.Port.IntVal
-			serverCommand := fmt.Sprintf("nc -%d -klp %d --sh-exec 'echo \"Hello World!\"'", family, port)
-			podname := "tcp-hello-world-server"
-		}
-
-		probeBackendPod, err := libpod.Run(
-			libpod.RenderPrivilegedPod(podname, []string{"/bin/bash"}, []string{"-c", serverCommand}),
-			testsuite.GetTestNamespace(nil),
-		)
-		Expect(err).ToNot(HaveOccurred(), "should run pod")
-		return probeBackendPod
-	}
-
 	Context("for readiness", func() {
 		const (
 			period         = 5
@@ -378,4 +354,29 @@ func withLivelinessProbe(probe *v1.Probe) libvmi.Option {
 
 func deletePod(pod *corev1.Pod) {
 	Expect(kubevirt.Client().CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})).To(Succeed(), "The support pod responding to the probes should be cleaned-up at test tear-down.")
+}
+
+func runProbeBackendPod(ipFamily corev1.IPFamily, probe *v1.Probe) *corev1.Pod {
+	family := 4
+	if ipFamily == corev1.IPv6Protocol {
+		family = 6
+	}
+
+	var serverCommand, podname string
+	if isHTTPProbe(*probe) {
+		port := probe.HTTPGet.Port.IntVal
+		serverCommand = fmt.Sprintf("nc -%d -klp %d --sh-exec 'echo -e \"HTTP/1.1 200 OK\\nContent-Length: 12\\n\\nHello World!\"'", family, port)
+		podname = "http-hello-world-server"
+	} else {
+		port := probe.TCPSocket.Port.IntVal
+		serverCommand = fmt.Sprintf("nc -%d -klp %d --sh-exec 'echo \"Hello World!\"'", family, port)
+		podname = "tcp-hello-world-server"
+	}
+
+	probeBackendPod, err := libpod.Run(
+		libpod.RenderPrivilegedPod(podname, []string{"/bin/bash"}, []string{"-c", serverCommand}),
+		testsuite.GetTestNamespace(nil),
+	)
+	Expect(err).ToNot(HaveOccurred(), "should run pod")
+	return probeBackendPod
 }
