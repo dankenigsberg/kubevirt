@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	v1 "kubevirt.io/api/core/v1"
-	"kubevirt.io/client-go/kubecli"
 
 	"kubevirt.io/kubevirt/pkg/libvmi"
 
@@ -41,14 +40,9 @@ const (
 var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 	var (
 		err           error
-		virtClient    kubecli.KubevirtClient
 		vmi           *v1.VirtualMachineInstance
 		blankIPFamily = *new(corev1.IPFamily)
 	)
-
-	BeforeEach(func() {
-		virtClient = kubevirt.Client()
-	})
 
 	Context("for readiness", func() {
 		const (
@@ -189,7 +183,7 @@ var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 
 			By("Checking that the VMI is still running after a while")
 			Consistently(func() bool {
-				vmi, err := virtClient.VirtualMachineInstance(testsuite.GetTestNamespace(vmi)).Get(context.Background(), vmi.Name, metav1.GetOptions{})
+				vmi, err := kubevirt.Client().VirtualMachineInstance(testsuite.GetTestNamespace(vmi)).Get(context.Background(), vmi.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 				return vmi.IsFinal()
 			}, 120, 1).Should(Not(BeTrue()))
@@ -215,7 +209,7 @@ var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 				Expect(stopGuestAgent(vmi)).To(Succeed())
 
 				Eventually(func() (*v1.VirtualMachineInstance, error) {
-					return virtClient.VirtualMachineInstance(testsuite.GetTestNamespace(vmi)).Get(context.Background(), vmi.Name, metav1.GetOptions{})
+					return kubevirt.Client().VirtualMachineInstance(testsuite.GetTestNamespace(vmi)).Get(context.Background(), vmi.Name, metav1.GetOptions{})
 				}, 2*time.Minute, 1*time.Second).Should(Or(matcher.BeInPhase(v1.Failed), matcher.HaveSucceeded()))
 			})
 		})
@@ -227,7 +221,7 @@ var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 
 			By("Checking that the VMI is in a final state after a while")
 			Eventually(func() bool {
-				vmi, err := virtClient.VirtualMachineInstance(testsuite.GetTestNamespace(vmi)).Get(context.Background(), vmi.Name, metav1.GetOptions{})
+				vmi, err := kubevirt.Client().VirtualMachineInstance(testsuite.GetTestNamespace(vmi)).Get(context.Background(), vmi.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 				return vmi.IsFinal()
 			}, 120, 1).Should(BeTrue())
