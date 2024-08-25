@@ -32,11 +32,6 @@ const (
 	specifyingVMLivenessProbe  = "Specifying a VMI with a liveness probe"
 )
 
-const (
-	startAgent = "start"
-	stopAgent  = "stop"
-)
-
 var _ = SIGDescribe("[ref_id:1182]Probes", func() {
 	var (
 		err           error
@@ -238,17 +233,14 @@ func isExecProbe(probe *v1.Probe) bool {
 }
 
 func startGuestAgent(vmi *v1.VirtualMachineInstance) error {
-	return guestAgentOperation(vmi, startAgent)
+	return guestAgentOperation(vmi, "start")
 }
 
 func stopGuestAgent(vmi *v1.VirtualMachineInstance) error {
-	return guestAgentOperation(vmi, stopAgent)
+	return guestAgentOperation(vmi, "stop")
 }
 
 func guestAgentOperation(vmi *v1.VirtualMachineInstance, startStopOperation string) error {
-	if startStopOperation != startAgent && startStopOperation != stopAgent {
-		return fmt.Errorf("invalid qemu-guest-agent request: %s. Allowed values are: '%s' *or* '%s'", startStopOperation, startAgent, stopAgent)
-	}
 	guestAgentSysctlString := fmt.Sprintf("sudo systemctl %s qemu-guest-agent\n", startStopOperation)
 	return console.SafeExpectBatch(vmi, []expect.Batcher{
 		&expect.BSnd{S: guestAgentSysctlString},
