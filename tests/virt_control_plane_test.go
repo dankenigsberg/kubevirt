@@ -257,13 +257,13 @@ var _ = Describe("[Serial][ref_id:2717][sig-compute]KubeVirt control plane resil
 				Eventually(readyFunc, 30*time.Second, time.Second).Should(BeNumerically(">", 0))
 
 				By("blocking connection to API on pods")
-				libpod.AddKubernetesAPIBlackhole(getHandlerPods(), componentName)
+				Expect(libpod.AddKubernetesAPIBlackhole(getHandlerPods(), componentName)).To(Succeed())
 
 				By("ensuring we no longer have a ready pod")
 				Eventually(readyFunc, 120*time.Second, time.Second).Should(BeNumerically("==", 0))
 
 				By("removing blockage to API")
-				libpod.DeleteKubernetesAPIBlackhole(getHandlerPods(), componentName)
+				Expect(libpod.DeleteKubernetesAPIBlackhole(getHandlerPods(), componentName)).To(Succeed())
 
 				By("ensuring we now have a ready virt-handler daemonset")
 				Eventually(readyFunc, 30*time.Second, time.Second).Should(BeNumerically("==", desiredDeamonsSetCount))

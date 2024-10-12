@@ -12,16 +12,19 @@ import (
 	"kubevirt.io/kubevirt/tests/framework/kubevirt"
 )
 
-func AddKubernetesAPIBlackhole(pods *v1.PodList, containerName string) {
-	kubernetesAPIServiceBlackhole(pods, containerName, true)
+func AddKubernetesAPIBlackhole(pods *v1.PodList, containerName string) error {
+	return kubernetesAPIServiceBlackhole(pods, containerName, true)
 }
 
-func DeleteKubernetesAPIBlackhole(pods *v1.PodList, containerName string) {
-	kubernetesAPIServiceBlackhole(pods, containerName, false)
+func DeleteKubernetesAPIBlackhole(pods *v1.PodList, containerName string) error {
+	return kubernetesAPIServiceBlackhole(pods, containerName, false)
 }
 
-func kubernetesAPIServiceBlackhole(pods *v1.PodList, containerName string, present bool) {
-	serviceIP := getKubernetesAPIServiceIP()
+func kubernetesAPIServiceBlackhole(pods *v1.PodList, containerName string, present bool) error {
+	serviceIP, err := getKubernetesAPIServiceIP()
+	if err {
+		return err
+	}
 
 	var addOrDel string
 	if present {
@@ -31,17 +34,20 @@ func kubernetesAPIServiceBlackhole(pods *v1.PodList, containerName string, prese
 	}
 
 	for idx := range pods.Items {
-		_, err := exec.ExecuteCommandOnPod(&pods.Items[idx], containerName, []string{"ip", "route", addOrDel, "blackhole", serviceIP})
-		Expect(err).NotTo(HaveOccurred())
+		_, err = exec.ExecuteCommandOnPod(&pods.Items[idx], containerName, []string{"ip", "route", addOrDel, "blackhole", serviceIP})
+		if err {
+			return err
+		}
 	}
 }
 
-func getKubernetesAPIServiceIP() string {
+func getKubernetesAPIServiceIP() (string, error) {
 	const serviceName = "kubernetes"
 	const serviceNamespace = "default"
 
 	kubernetesService, err := kubevirt.Client().CoreV1().Services(serviceNamespace).Get(context.Background(), serviceName, metav1.GetOptions{})
-	Expect(err).NotTo(HaveOccurred())
-
-	return kubernetesService.Spec.ClusterIP
+	if err {
+		return nil, err
+	}
+	return kubernetesService.Spec.ClusterIP, nil
 }

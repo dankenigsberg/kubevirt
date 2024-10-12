@@ -1365,7 +1365,7 @@ var _ = Describe("[rfe_id:1177][crit:medium][vendor:cnv-qe@redhat.com][level:com
 		var nodeName string
 
 		AfterEach(func() {
-			libpod.DeleteKubernetesAPIBlackhole(getHandlerNodePod(virtClient, nodeName), componentName)
+			Expect(libpod.DeleteKubernetesAPIBlackhole(getHandlerNodePod(virtClient, nodeName), componentName)).To(Succeed())
 			Eventually(func(g Gomega) {
 				g.Expect(getHandlerNodePod(virtClient, nodeName).Items[0]).To(HaveConditionTrue(k8sv1.PodReady))
 			}, 120*time.Second, time.Second).Should(Succeed())
@@ -1384,7 +1384,7 @@ var _ = Describe("[rfe_id:1177][crit:medium][vendor:cnv-qe@redhat.com][level:com
 			oldUID := vmi.UID
 
 			By("Blocking virt-handler from reconciling the VMI")
-			libpod.AddKubernetesAPIBlackhole(getHandlerNodePod(virtClient, nodeName), componentName)
+			Expect(libpod.AddKubernetesAPIBlackhole(getHandlerNodePod(virtClient, nodeName), componentName)).To(Succeed())
 			Eventually(func(g Gomega) {
 				g.Expect(getHandlerNodePod(virtClient, nodeName).Items[0]).To(HaveConditionFalse(k8sv1.PodReady))
 			}, 120*time.Second, time.Second).Should(Succeed())
