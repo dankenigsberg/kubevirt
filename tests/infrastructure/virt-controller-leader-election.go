@@ -44,16 +44,9 @@ import (
 
 var _ = DescribeInfra("Start a VirtualMachineInstance", func() {
 
-	var (
-		virtClient kubecli.KubevirtClient
-	)
-
-	BeforeEach(func() {
-		virtClient = kubevirt.Client()
-	})
-
 	Context("when the controller pod is not running and an election happens", func() {
 		It("[test_id:4642]should elect a new controller pod", func() {
+			virtClient := kubevirt.Client()
 			By("Deleting the virt-controller leader pod")
 			leaderPodName := libinfra.GetLeader()
 			Expect(virtClient.CoreV1().Pods(flags.KubeVirtInstallNamespace).Delete(context.Background(), leaderPodName, metav1.DeleteOptions{})).To(Succeed())
