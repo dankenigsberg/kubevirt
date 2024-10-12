@@ -55,12 +55,9 @@ var _ = DescribeInfra("Start a VirtualMachineInstance", func() {
 			Eventually(libinfra.GetLeader, 30*time.Second, 5*time.Second).ShouldNot(Equal(leaderPodName))
 
 			By("Starting a new VirtualMachineInstance")
-			vmi := libvmifact.NewAlpine()
-			obj, err := virtClient.RestClient().Post().Resource("virtualmachineinstances").Namespace(testsuite.GetTestNamespace(vmi)).Body(vmi).Do(context.Background()).Get()
+			vmi, err := virtClient.VirtualMachineInstance(testsuite.GetTestNamespace(vmi)).Create(context.Background(), libvmifact.NewGuestless(), metav1.CreateOptions{})
 			Expect(err).ToNot(HaveOccurred())
-			vmiObj, ok := obj.(*v1.VirtualMachineInstance)
-			Expect(ok).To(BeTrue(), "Object is not of type *v1.VirtualMachineInstance")
-			libwait.WaitForSuccessfulVMIStart(vmiObj)
+			libwait.WaitForSuccessfulVMIStart(vmi)
 		})
 	})
 
