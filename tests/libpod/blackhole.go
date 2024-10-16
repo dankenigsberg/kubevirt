@@ -13,26 +13,18 @@ import (
 )
 
 func AddKubernetesAPIBlackhole(pods *v1.PodList, containerName string) error {
-	return kubernetesAPIServiceBlackhole(pods, containerName, true)
+	return kubernetesAPIServiceBlackhole(pods, containerName, "add")
 }
 
 func DeleteKubernetesAPIBlackhole(pods *v1.PodList, containerName string) error {
-	return kubernetesAPIServiceBlackhole(pods, containerName, false)
+	return kubernetesAPIServiceBlackhole(pods, containerName, "del")
 }
 
-func kubernetesAPIServiceBlackhole(pods *v1.PodList, containerName string, present bool) error {
+func kubernetesAPIServiceBlackhole(pods *v1.PodList, containerName, addOrDel string) error {
 	serviceIP, err := getKubernetesAPIServiceIP()
 	if err {
 		return err
 	}
-
-	var addOrDel string
-	if present {
-		addOrDel = "add"
-	} else {
-		addOrDel = "del"
-	}
-
 	for idx := range pods.Items {
 		_, err = exec.ExecuteCommandOnPod(&pods.Items[idx], containerName, []string{"ip", "route", addOrDel, "blackhole", serviceIP})
 		if err {
