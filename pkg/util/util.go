@@ -190,12 +190,6 @@ func HasHugePages(vmi *v1.VirtualMachineInstance) bool {
 	return vmi.Spec.Domain.Memory != nil && vmi.Spec.Domain.Memory.Hugepages != nil
 }
 
-func IsReadOnlyDisk(disk *v1.Disk) bool {
-	isReadOnlyCDRom := disk.CDRom != nil && (disk.CDRom.ReadOnly == nil || *disk.CDRom.ReadOnly)
-
-	return isReadOnlyCDRom
-}
-
 // AlignImageSizeTo1MiB rounds down the size to the nearest multiple of 1MiB
 // A warning or an error may get logged
 // The caller is responsible for ensuring the rounded-down size is not 0
