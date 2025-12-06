@@ -72,6 +72,12 @@ func newQueue(vmiStore cache.Store, vmi *v1.VirtualMachineInstance) *queue {
 }
 
 func (q *queue) startPolling() {
+	// Prevent multiple goroutines from being started
+	if q.ctx != nil {
+		log.Log.V(4).Infof("polling already started for VMI %s/%s, skipping", q.vmi.Namespace, q.vmi.Name)
+		return
+	}
+	
 	q.ctx, q.ctxCancel = context.WithCancel(context.Background())
 
 	ticker := time.NewTicker(pollingInterval)
@@ -164,4 +170,9 @@ func (q *queue) isMigrationFinished() bool {
 
 	vmi := vmiRaw.(*v1.VirtualMachineInstance)
 	return vmi.Status.MigrationState == nil || vmi.Status.MigrationState.Completed
+}
+
+// isActive returns true if the polling goroutine is running
+func (q *queue) isActive() bool {
+	return q.ctx != nil && q.ctx.Err() == nil
 }

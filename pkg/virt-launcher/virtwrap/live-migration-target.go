@@ -159,6 +159,17 @@ func (l *LibvirtDomainManager) prepareMigrationTarget(
 	options *cmdv1.VirtualMachineOptions,
 ) error {
 	logger := log.Log.Object(vmi)
+	
+	// Check migration metadata early to avoid wasteful CPU usage on repeated calls
+	inProgress, err := l.initializeMigrationMetadata(vmi, v1.MigrationPreCopy)
+	if err != nil {
+		return err
+	}
+	if inProgress {
+		logger.V(4).Info("Migration already in progress, skipping preparation")
+		return nil
+	}
+	
 	if l.imageVolumeFeatureGateEnabled {
 		err := l.linkImageVolumeFilePaths(vmi)
 		if err != nil {
@@ -186,13 +197,6 @@ func (l *LibvirtDomainManager) prepareMigrationTarget(
 	l.metadataCache.GracePeriod.Set(
 		api.GracePeriodMetadata{DeletionGracePeriodSeconds: converter.GracePeriodSeconds(vmi)},
 	)
-	inProgress, err := l.initializeMigrationMetadata(vmi, v1.MigrationPreCopy)
-	if err != nil {
-		return err
-	}
-	if inProgress {
-		return nil
-	}
 
 	err = l.generateCloudInitEmptyISO(vmi, nil)
 	if err != nil {

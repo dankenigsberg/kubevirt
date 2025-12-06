@@ -92,8 +92,14 @@ func (h *handler) addMigration(vmi *v1.VirtualMachineInstance) {
 	h.Lock()
 	defer h.Unlock()
 
-	if _, ok := h.vmiStats[key]; ok {
-		return
+	// Double-check we don't already have a queue to prevent race conditions
+	if existingQueue, ok := h.vmiStats[key]; ok {
+		// Make sure the existing queue is still active
+		if existingQueue.isActive() {
+			return
+		}
+		// Clean up dead queue
+		delete(h.vmiStats, key)
 	}
 
 	q := newQueue(h.vmiStore, vmi)
