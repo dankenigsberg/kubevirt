@@ -313,28 +313,18 @@ build_images() {
     return $rc
 }
 
+panic_in_file() {
+    grep -vE "panicked:\s*false|panic_total|guest.os.panic" | grep -qiE "\bpanic(ked)?\b"
+}
+
 check_for_panics() {
     set +x
     if [ -d "${ARTIFACTS_PATH}" ]; then
-        local panic_files=$(grep -rlE --color=never -i "\bpanic(ked)?\b" "${ARTIFACTS_PATH}" 2>/dev/null | \
-            while IFS= read -r file; do
-                grep -qE "panicked:\s*false" "$file" 2>/dev/null || echo "$file"
-            done)
-        if [ -n "$panic_files" ]; then
-            echo ""
-            echo "================================"
-            echo "ERROR: Found panic in test output"
-            echo "Files:"
-            if [[ -n "${PULL_NUMBER}" && -n "${JOB_NAME}" && -n "${BUILD_ID}" ]]; then
-                while IFS= read -r file; do
-                    local relative_path="${file#/logs/}"
-                    echo "https://storage.googleapis.com/kubevirt-prow/pr-logs/pull/kubevirt_kubevirt/${PULL_NUMBER}/${JOB_NAME}/${BUILD_ID}/${relative_path}"
-                done <<< "$panic_files"
-            else
-                echo "$panic_files"
+        for file in $(find "${ARTIFACTS_PATH}" -type f 2>/dev/null); do
+            if panic_in_file < "$file" 2>/dev/null; then
+                echo "ERROR: Found panic: https://storage.googleapis.com/kubevirt-prow/pr-logs/pull/kubevirt_kubevirt/${PULL_NUMBER}/${JOB_NAME}/${BUILD_ID}/${file#/logs/}"
             fi
-            echo "================================"
-        fi
+        done
     fi
     set -x
 }
