@@ -196,15 +196,6 @@ func PathForSwtpm(vmi *v1.VirtualMachineInstance) string {
 	return swtpmPath
 }
 
-func PathForSwtpmLocalca(vmi *v1.VirtualMachineInstance) string {
-	localCaPath := "/var/lib/swtpm-localca"
-	if vmitrait.IsNonRoot(vmi) {
-		localCaPath = filepath.Join(VirtPrivateDir, "var", "lib", "swtpm-localca")
-	}
-
-	return localCaPath
-}
-
 func PathForNVram(vmi *v1.VirtualMachineInstance) string {
 	nvramPath := "/var/lib/libvirt/qemu/nvram"
 	if vmitrait.IsNonRoot(vmi) {
