@@ -25,12 +25,12 @@ var _ = Describe("CaManager", func() {
 		Expect(err).ToNot(HaveOccurred())
 		configMap = &k8sv1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            util.ExtensionAPIServerAuthenticationConfigMap,
+				Name:            ExtensionAPIServerAuthenticationConfigMap,
 				Namespace:       metav1.NamespaceSystem,
 				ResourceVersion: "1",
 			},
 			Data: map[string]string{
-				util.RequestHeaderClientCAFileKey: string(cert.EncodeCertPEM(ca.Cert)),
+				RequestHeaderClientCAFileKey: string(cert.EncodeCertPEM(ca.Cert)),
 			},
 		}
 		store = cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
@@ -47,7 +47,7 @@ var _ = Describe("CaManager", func() {
 	It("should detect updates on the informer and update the CA", func() {
 		newCA, err := triple.NewCA("new", time.Hour)
 		Expect(err).ToNot(HaveOccurred())
-		configMap.Data[util.RequestHeaderClientCAFileKey] = string(cert.EncodeCertPEM(newCA.Cert))
+		configMap.Data[RequestHeaderClientCAFileKey] = string(cert.EncodeCertPEM(newCA.Cert))
 		configMap.ObjectMeta.ResourceVersion = "2"
 		cert, err := manager.GetCurrent()
 		Expect(err).ToNot(HaveOccurred())
@@ -56,7 +56,7 @@ var _ = Describe("CaManager", func() {
 
 	It("should detect invalid CAs and recover later", func() {
 		By("injecting an invalid CA")
-		configMap.Data[util.RequestHeaderClientCAFileKey] = string("garbage")
+		configMap.Data[RequestHeaderClientCAFileKey] = string("garbage")
 		configMap.ObjectMeta.ResourceVersion = "2"
 		_, err := manager.GetCurrent()
 		Expect(err).To(HaveOccurred())
@@ -64,14 +64,14 @@ var _ = Describe("CaManager", func() {
 		configMap.ObjectMeta.ResourceVersion = "3"
 		newCA, err := triple.NewCA("new", time.Hour)
 		Expect(err).ToNot(HaveOccurred())
-		configMap.Data[util.RequestHeaderClientCAFileKey] = string(cert.EncodeCertPEM(newCA.Cert))
+		configMap.Data[RequestHeaderClientCAFileKey] = string(cert.EncodeCertPEM(newCA.Cert))
 		cert, err := manager.GetCurrent()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cert.Subjects()[0]).To(ContainSubstring("new"))
 	})
 
 	It("should detect if the is no CA provided", func() {
-		delete(configMap.Data, util.RequestHeaderClientCAFileKey)
+		delete(configMap.Data, RequestHeaderClientCAFileKey)
 		_, err := manager.GetCurrent()
 		Expect(err).To(HaveOccurred())
 	})
@@ -87,7 +87,7 @@ var _ = Describe("CaManager", func() {
 		_, err := manager.GetCurrent()
 		Expect(err).ToNot(HaveOccurred())
 		By("changing the content but not increasing the resource version")
-		configMap.Data[util.RequestHeaderClientCAFileKey] = string("garbage")
+		configMap.Data[RequestHeaderClientCAFileKey] = string("garbage")
 		cert, err := manager.GetCurrent()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cert.Subjects()[0]).To(ContainSubstring("first"))
@@ -101,12 +101,12 @@ var _ = Describe("KubernetesCAManager", func() {
 		Expect(err).ToNot(HaveOccurred())
 		configMap := &k8sv1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            util.ExtensionAPIServerAuthenticationConfigMap,
+				Name:            ExtensionAPIServerAuthenticationConfigMap,
 				Namespace:       metav1.NamespaceSystem,
 				ResourceVersion: "1",
 			},
 			Data: map[string]string{
-				util.RequestHeaderClientCAFileKey: string(cert.EncodeCertPEM(ca.Cert)),
+				RequestHeaderClientCAFileKey: string(cert.EncodeCertPEM(ca.Cert)),
 			},
 		}
 		f(configMap)

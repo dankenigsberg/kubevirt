@@ -239,6 +239,8 @@ coding conventions](#detailed-coding-conventions).
       coupling between behavior and implementation.
 - Avoid use of global variables.
     - Use structs and receiver methods to keep state.
+- Create short and well-named packages. Avoid generic "utils" that end up
+  hosting unrelated stuff.
 - Avoid long files.
     - Avoid adding helpers in a single place. Long files like `tests/utils.go`
       are hard to maintain.
