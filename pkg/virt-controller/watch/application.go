@@ -215,6 +215,8 @@ type VirtControllerApp struct {
 
 	crdInformer cache.SharedIndexInformer
 
+	pluginInformer cache.SharedIndexInformer
+
 	migrationPolicyInformer cache.SharedIndexInformer
 
 	vmCloneInformer   cache.SharedIndexInformer
@@ -420,6 +422,7 @@ func Execute() {
 	app.allPodInformer = app.informerFactory.Pod()
 	app.exportServiceInformer = app.informerFactory.ExportService()
 	app.resourceQuotaInformer = app.informerFactory.ResourceQuota()
+	app.pluginInformer = app.informerFactory.Plugin()
 
 	if app.hasCDI {
 		app.dataVolumeInformer = app.informerFactory.DataVolume()
@@ -719,6 +722,7 @@ func (vca *VirtControllerApp) initCommon() {
 		services.WithSidecarCreator(netbinding.NetBindingPluginSidecarList),
 		services.WithNetMemoryCalculator(netresources.MemoryCalculator{}),
 		services.WithAnnotationsGenerators(netAnnotationsGenerator, storageannotations.Generator{}),
+		services.WithPluginStore(vca.pluginInformer.GetStore()),
 	)
 
 	topologyHinter := topology.NewTopologyHinter(vca.nodeInformer.GetStore(), vca.vmiInformer.GetStore(), vca.clusterConfig)

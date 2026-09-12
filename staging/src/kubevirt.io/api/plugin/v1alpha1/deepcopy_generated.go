@@ -24,6 +24,7 @@ Copyright The KubeVirt Authors.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -194,6 +195,11 @@ func (in *PluginSpec) DeepCopyInto(out *PluginSpec) {
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
+	}
+	if in.LauncherPodHooks != nil {
+		in, out := &in.LauncherPodHooks, &out.LauncherPodHooks
+		*out = new(corev1.PodTemplateSpec)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.MutatingAdmissionPolicies != nil {
 		in, out := &in.MutatingAdmissionPolicies, &out.MutatingAdmissionPolicies

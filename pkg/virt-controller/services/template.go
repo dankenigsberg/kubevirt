@@ -30,17 +30,21 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
+
 	"github.com/openshift/library-go/pkg/build/naming"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubectl/pkg/cmd/util/podcmd"
 	v1 "kubevirt.io/api/core/v1"
 	exportv1 "kubevirt.io/api/export/v1"
+	pluginv1alpha1 "kubevirt.io/api/plugin/v1alpha1"
 	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/client-go/log"
 	"kubevirt.io/client-go/precond"
@@ -48,6 +52,8 @@ import (
 	drautil "kubevirt.io/kubevirt/pkg/dra"
 	"kubevirt.io/kubevirt/pkg/hypervisor"
 	"kubevirt.io/kubevirt/pkg/pointer"
+
+	plugincel "kubevirt.io/kubevirt/pkg/plugins/cel"
 
 	"kubevirt.io/kubevirt/pkg/apimachinery"
 	containerdisk "kubevirt.io/kubevirt/pkg/container-disk"
@@ -150,6 +156,8 @@ type TemplateService struct {
 	netMemoryCalculator         netMemoryCalculator
 	annotationsGenerators       []annotationsGenerator
 	launcherHypervisorResources hypervisor.LauncherHypervisorResources
+	pluginStore                 cache.Store
+	celEvaluator                *plugincel.Evaluator
 }
 
 func isFeatureStateEnabled(fs *v1.FeatureState) bool {
@@ -764,7 +772,80 @@ func (t *TemplateService) renderLaunchManifest(vmi *v1.VirtualMachineInstance, i
 
 	pod.Spec.Volumes = append(pod.Spec.Volumes, sidecarVolumes...)
 
+	if err := t.applyLauncherPodHooks(vmi, &pod); err != nil {
+		return nil, fmt.Errorf("applying LauncherPodHooks: %w", err)
+	}
+
 	return &pod, nil
+}
+
+func (t *TemplateService) applyLauncherPodHooks(vmi *v1.VirtualMachineInstance, pod *k8sv1.Pod) error {
+	if t.pluginStore == nil || t.celEvaluator == nil {
+		return nil
+	}
+
+	plugins := t.pluginStore.List()
+	if len(plugins) == 0 {
+		return nil
+	}
+
+	sorted := make([]*pluginv1alpha1.Plugin, 0, len(plugins))
+	for _, obj := range plugins {
+		if p, ok := obj.(*pluginv1alpha1.Plugin); ok && p.Spec.LauncherPodHooks != nil {
+			sorted = append(sorted, p)
+		}
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Name < sorted[j].Name
+	})
+
+	vars := map[string]any{"vmi": vmi}
+
+	for _, plugin := range sorted {
+		match, err := t.celEvaluator.EvaluateCondition(plugin.Spec.Condition, vars)
+		if err != nil {
+			if plugin.Spec.FailureStrategy == pluginv1alpha1.FailureStrategyIgnore {
+				log.Log.Object(vmi).Reason(err).Warningf("Ignoring LauncherPodHooks CEL error for plugin %s", plugin.Name)
+				continue
+			}
+			return fmt.Errorf("evaluating plugin %s condition: %w", plugin.Name, err)
+		}
+		if !match {
+			continue
+		}
+
+		if err := strategicMergePatchPod(pod, plugin.Spec.LauncherPodHooks); err != nil {
+			return fmt.Errorf("applying LauncherPodHooks from plugin %s: %w", plugin.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func strategicMergePatchPod(pod *k8sv1.Pod, patch *k8sv1.PodTemplateSpec) error {
+	originalJSON, err := json.Marshal(pod)
+	if err != nil {
+		return fmt.Errorf("marshaling pod: %w", err)
+	}
+
+	patchPod := k8sv1.Pod{
+		Spec: patch.Spec,
+	}
+	if patch.ObjectMeta.Labels != nil || patch.ObjectMeta.Annotations != nil {
+		patchPod.ObjectMeta = patch.ObjectMeta
+	}
+
+	patchJSON, err := json.Marshal(patchPod)
+	if err != nil {
+		return fmt.Errorf("marshaling patch: %w", err)
+	}
+
+	mergedJSON, err := strategicpatch.StrategicMergePatch(originalJSON, patchJSON, k8sv1.Pod{})
+	if err != nil {
+		return fmt.Errorf("strategic merge patch: %w", err)
+	}
+
+	return json.Unmarshal(mergedJSON, pod)
 }
 
 func (t *TemplateService) newNodeSelectorRenderer(vmi *v1.VirtualMachineInstance) *NodeSelectorRenderer {
@@ -1743,6 +1824,18 @@ func WithNetMemoryCalculator(netMemoryCalculator netMemoryCalculator) templateSe
 func WithAnnotationsGenerators(generators ...annotationsGenerator) templateServiceOption {
 	return func(service *TemplateService) {
 		service.annotationsGenerators = append(service.annotationsGenerators, generators...)
+	}
+}
+
+func WithPluginStore(store cache.Store) templateServiceOption {
+	return func(service *TemplateService) {
+		service.pluginStore = store
+		evaluator, err := plugincel.NewEvaluator()
+		if err != nil {
+			log.Log.Reason(err).Error("Failed to create CEL evaluator for LauncherPodHooks")
+			return
+		}
+		service.celEvaluator = evaluator
 	}
 }
 

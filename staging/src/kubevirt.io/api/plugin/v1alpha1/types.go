@@ -20,6 +20,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -74,6 +75,12 @@ type PluginSpec struct {
 	// +optional
 	// +listType=atomic
 	NodeHooks []NodeHook `json:"nodeHooks,omitempty"`
+
+	// LauncherPodHooks is a partial PodTemplateSpec that is strategic-merge-patched
+	// into the rendered virt-launcher pod when the plugin's Condition matches.
+	// Containers are matched by name. Any pod spec field can be overridden.
+	// +optional
+	LauncherPodHooks *corev1.PodTemplateSpec `json:"launcherPodHooks,omitempty"`
 
 	// MutatingAdmissionPolicies references MutatingAdmissionPolicy objects managed by the plugin.
 	// +optional
