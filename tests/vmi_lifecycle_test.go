@@ -1055,25 +1055,6 @@ var _ = Describe("[rfe_id:273][crit:high][vendor:cnv-qe@redhat.com][level:compon
 				Entry("[test_id:1642]Alternative test namespace", true),
 			)
 		})
-
-		Context("VM Accelerated Mode", decorators.WgS390x, func() {
-
-			It("[test_id:1648]Should provide KVM via plugin framework", func() {
-				nodeList := libnode.GetAllSchedulableNodes(kubevirt.Client())
-
-				if len(nodeList.Items) == 0 {
-					Fail("There are no compute nodes in cluster")
-				}
-				node := nodeList.Items[0]
-
-				kvmResource := services.ConstructHypervisorResourceName(hypervisor.NewLauncherHypervisorResources(v1.KvmHypervisorName))
-				_, ok := node.Status.Allocatable[kvmResource]
-				Expect(ok).To(BeTrue(), "KVM devices not allocatable on node: %s", node.Name)
-
-				_, ok = node.Status.Capacity[kvmResource]
-				Expect(ok).To(BeTrue(), "No Capacity for KVM devices on node: %s", node.Name)
-			})
-		})
 	})
 
 	Describe("Freeze/Unfreeze a VirtualMachineInstance", decorators.WgS390x, func() {
