@@ -37,10 +37,7 @@ import (
 	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/client-go/log"
 
-	"kubevirt.io/kubevirt/pkg/virt-config/featuregate"
-
 	"kubevirt.io/kubevirt/tests/flags"
-	"kubevirt.io/kubevirt/tests/framework/checks"
 	"kubevirt.io/kubevirt/tests/framework/cleanup"
 	"kubevirt.io/kubevirt/tests/framework/kubevirt"
 	"kubevirt.io/kubevirt/tests/libnamespace"
@@ -427,10 +424,6 @@ func CalculateNamespaces() {
 func GetTestNamespace(object metav1.Object) string {
 	if object != nil && object.GetNamespace() != "" {
 		return object.GetNamespace()
-	}
-
-	if checks.HasFeature(featuregate.Root) {
-		return NamespacePrivileged
 	}
 
 	return NamespaceTestDefault

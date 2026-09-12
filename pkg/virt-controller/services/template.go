@@ -72,7 +72,6 @@ import (
 	"kubevirt.io/kubevirt/pkg/virt-controller/watch/topology"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 	operatorutil "kubevirt.io/kubevirt/pkg/virt-operator/util"
-	"kubevirt.io/kubevirt/pkg/vmitrait"
 )
 
 const (
@@ -372,15 +371,10 @@ func computePodSecurityContext(vmi *v1.VirtualMachineInstance, seccomp *k8sv1.Se
 	// so we need to allow the NonRootUID for virtiofsd to be able to write into the PVC
 	psc.FSGroup = pointer.P(int64(util.NonRootUID))
 
-	if vmitrait.IsNonRoot(vmi) {
-		nonRootUser := int64(util.NonRootUID)
-		psc.RunAsUser = &nonRootUser
-		psc.RunAsGroup = &nonRootUser
-		psc.RunAsNonRoot = pointer.P(true)
-	} else {
-		rootUser := int64(util.RootUser)
-		psc.RunAsUser = &rootUser
-	}
+	nonRootUser := int64(util.NonRootUID)
+	psc.RunAsUser = &nonRootUser
+	psc.RunAsGroup = &nonRootUser
+	psc.RunAsNonRoot = pointer.P(true)
 	psc.SeccompProfile = seccomp
 
 	return psc
@@ -391,12 +385,7 @@ func (t *TemplateService) renderLaunchManifest(vmi *v1.VirtualMachineInstance, i
 	domain := precond.MustNotBeEmpty(vmi.GetObjectMeta().GetName())
 	namespace := precond.MustNotBeEmpty(vmi.GetObjectMeta().GetNamespace())
 
-	var userId int64 = util.RootUser
-
-	nonRoot := vmitrait.IsNonRoot(vmi)
-	if nonRoot {
-		userId = util.NonRootUID
-	}
+	userId := int64(util.NonRootUID)
 
 	// Pad the virt-launcher grace period.
 	// Ideally we want virt-handler to handle tearing down
@@ -457,9 +446,6 @@ func (t *TemplateService) renderLaunchManifest(vmi *v1.VirtualMachineInstance, i
 			"--ovmf-path", ovmfPath,
 			"--disk-memory-limit", strconv.Itoa(int(t.clusterConfig.GetDiskVerification().MemoryLimit.Value())),
 			"--hypervisor", t.clusterConfig.GetHypervisor().Name,
-		}
-		if nonRoot {
-			args = append(args, "--run-as-nonroot")
 		}
 		if t.clusterConfig.ImageVolumeEnabled() {
 			args = append(args, "--image-volume")
@@ -963,10 +949,8 @@ func newSidecarContainerRenderer(sidecarName string, vmiSpec *v1.VirtualMachineI
 	}
 	sidecarOpts = append(sidecarOpts, WithVolumeMounts(mounts...))
 
-	if vmitrait.IsNonRoot(vmiSpec) {
-		sidecarOpts = append(sidecarOpts, WithNonRoot(userId))
-		sidecarOpts = append(sidecarOpts, WithDropALLCapabilities())
-	}
+	sidecarOpts = append(sidecarOpts, WithNonRoot(userId))
+	sidecarOpts = append(sidecarOpts, WithDropALLCapabilities())
 	if requestedHookSidecar.Image == "" {
 		requestedHookSidecar.Image = os.Getenv(operatorutil.SidecarShimImageEnvName)
 	}
@@ -986,9 +970,7 @@ func (t *TemplateService) newInitContainerRenderer(vmiSpec *v1.VirtualMachineIns
 		WithNoCapabilities(),
 	}
 
-	if vmitrait.IsNonRoot(vmiSpec) {
-		cpInitContainerOpts = append(cpInitContainerOpts, WithNonRoot(userId))
-	}
+	cpInitContainerOpts = append(cpInitContainerOpts, WithNonRoot(userId))
 
 	cpInitContainerOpts = append(cpInitContainerOpts, extraOpts...)
 
@@ -1004,10 +986,8 @@ func (t *TemplateService) newContainerSpecRenderer(vmi *v1.VirtualMachineInstanc
 		WithPorts(vmi),
 		WithCapabilities(vmi),
 	}
-	if vmitrait.IsNonRoot(vmi) {
-		computeContainerOpts = append(computeContainerOpts, WithNonRoot(userId))
-		computeContainerOpts = append(computeContainerOpts, WithDropALLCapabilities())
-	}
+	computeContainerOpts = append(computeContainerOpts, WithNonRoot(userId))
+	computeContainerOpts = append(computeContainerOpts, WithDropALLCapabilities())
 	if vmi.Spec.ReadinessProbe != nil {
 		computeContainerOpts = append(computeContainerOpts, WithReadinessProbe(vmi))
 	}

@@ -30,32 +30,6 @@ import (
 )
 
 var _ = Describe("VMI traits", func() {
-	Context("IsNonRoot", func() {
-		It("should return false when annotation is absent and RuntimeUser is 0", func() {
-			Expect(vmitrait.IsNonRoot(&v1.VirtualMachineInstance{})).To(BeFalse())
-		})
-
-		DescribeTable("should return true", func(annotations map[string]string, runtimeUser uint64) {
-			vmi := &v1.VirtualMachineInstance{}
-			vmi.Annotations = annotations
-			vmi.Status.RuntimeUser = runtimeUser
-			Expect(vmitrait.IsNonRoot(vmi)).To(BeTrue())
-		},
-			Entry("when the deprecated non-root annotation is present",
-				map[string]string{v1.DeprecatedNonRootVMIAnnotation: ""},
-				uint64(0),
-			),
-			Entry("when RuntimeUser is non-zero",
-				nil,
-				uint64(107),
-			),
-			Entry("when both annotation and non-zero RuntimeUser are present",
-				map[string]string{v1.DeprecatedNonRootVMIAnnotation: ""},
-				uint64(107),
-			),
-		)
-	})
-
 	Context("HasVFIO", func() {
 		DescribeTable("should return true when a VFIO device is present", func(vmi *v1.VirtualMachineInstance) {
 			Expect(vmitrait.HasVFIO(vmi)).To(BeTrue())

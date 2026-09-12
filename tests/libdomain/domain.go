@@ -30,7 +30,6 @@ import (
 	"kubevirt.io/client-go/kubecli"
 
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
-	"kubevirt.io/kubevirt/pkg/vmitrait"
 
 	"kubevirt.io/kubevirt/tests/exec"
 	"kubevirt.io/kubevirt/tests/framework/kubevirt"
@@ -52,10 +51,7 @@ func GetRunningVirtualMachineInstanceDomainXML(virtClient kubecli.KubevirtClient
 		return "", err
 	}
 
-	command := []string{"virsh"}
-	if vmitrait.IsNonRoot(freshVMI) {
-		command = append(command, "-c", "qemu+unix:///session?socket=/var/run/libvirt/virtqemud-sock")
-	}
+	command := []string{"virsh", "-c", "qemu+unix:///session?socket=/var/run/libvirt/virtqemud-sock"}
 	command = append(command, []string{"dumpxml", vmi.Namespace + "_" + vmi.Name}...)
 
 	stdout, stderr, err := exec.ExecuteCommandOnPodWithResults(

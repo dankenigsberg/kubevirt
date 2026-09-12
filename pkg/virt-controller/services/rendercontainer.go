@@ -12,7 +12,6 @@ import (
 
 	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
-	"kubevirt.io/kubevirt/pkg/vmitrait"
 )
 
 const (
@@ -97,14 +96,14 @@ func WithNonRoot(userID int64) Option {
 	}
 }
 
-func WithCapabilities(vmi *v1.VirtualMachineInstance) Option {
+func WithCapabilities(_ *v1.VirtualMachineInstance) Option {
 	return func(renderer *ContainerSpecRenderer) {
 		if renderer.capabilities == nil {
 			renderer.capabilities = &k8sv1.Capabilities{
-				Add: requiredCapabilities(vmi),
+				Add: requiredCapabilities(),
 			}
 		} else {
-			renderer.capabilities.Add = requiredCapabilities(vmi)
+			renderer.capabilities.Add = requiredCapabilities()
 		}
 	}
 }
@@ -289,14 +288,6 @@ func wrapExecProbeWithVirtProbe(vmi *v1.VirtualMachineInstance, probe *k8sv1.Pro
 	probe.TimeoutSeconds += 1
 }
 
-func requiredCapabilities(vmi *v1.VirtualMachineInstance) []k8sv1.Capability {
-	// These capabilies are always required because we set them on virt-launcher binary
-	capabilities := []k8sv1.Capability{CAP_NET_BIND_SERVICE}
-
-	if !vmitrait.IsNonRoot(vmi) {
-		// add a CAP_SYS_NICE capability to allow setting cpu affinity
-		capabilities = append(capabilities, CAP_SYS_NICE)
-	}
-
-	return capabilities
+func requiredCapabilities() []k8sv1.Capability {
+	return []k8sv1.Capability{CAP_NET_BIND_SERVICE}
 }

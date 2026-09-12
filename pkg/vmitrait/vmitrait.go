@@ -23,12 +23,6 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 )
 
-func IsNonRoot(vmi *v1.VirtualMachineInstance) bool {
-	_, ok := vmi.Annotations[v1.DeprecatedNonRootVMIAnnotation]
-	nonRoot := vmi.Status.RuntimeUser != 0
-	return ok || nonRoot
-}
-
 // HasVFIO reports whether the VMI requests any VFIO device.
 func HasVFIO(vmi *v1.VirtualMachineInstance) bool {
 	return hasHostDev(vmi) || hasGPU(vmi) || hasSRIOV(vmi)

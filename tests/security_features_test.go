@@ -34,11 +34,9 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
 
-	"kubevirt.io/kubevirt/pkg/virt-config/featuregate"
 	"kubevirt.io/kubevirt/tests/console"
 	"kubevirt.io/kubevirt/tests/decorators"
 	"kubevirt.io/kubevirt/tests/exec"
-	"kubevirt.io/kubevirt/tests/framework/checks"
 	"kubevirt.io/kubevirt/tests/framework/kubevirt"
 	"kubevirt.io/kubevirt/tests/libdomain"
 	"kubevirt.io/kubevirt/tests/libkubevirt"
@@ -182,14 +180,9 @@ var _ = Describe("[sig-compute]SecurityFeatures", decorators.SigCompute, func() 
 				}
 			}
 			caps := *container.SecurityContext.Capabilities
-			if !checks.HasFeature(featuregate.Root) {
-				Expect(caps.Add).To(ConsistOf(k8sv1.Capability("NET_BIND_SERVICE")))
-				By("Checking virt-launcher Pod's compute container has precisely the documented dropped capabilities")
-				Expect(caps.Drop).To(ConsistOf(k8sv1.Capability("ALL")), "Expected compute container of virt_launcher to drop all caps")
-			} else {
-				Expect(caps.Add).To(ConsistOf(k8sv1.Capability("NET_BIND_SERVICE"), k8sv1.Capability("SYS_NICE")))
-				Expect(caps.Drop).To(BeEmpty())
-			}
+			Expect(caps.Add).To(ConsistOf(k8sv1.Capability("NET_BIND_SERVICE")))
+			By("Checking virt-launcher Pod's compute container has precisely the documented dropped capabilities")
+			Expect(caps.Drop).To(ConsistOf(k8sv1.Capability("ALL")), "Expected compute container of virt_launcher to drop all caps")
 		})
 	})
 

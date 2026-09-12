@@ -11,8 +11,6 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 	generatedscheme "kubevirt.io/client-go/kubevirt/scheme"
 	"kubevirt.io/client-go/log"
-
-	"kubevirt.io/kubevirt/pkg/vmitrait"
 )
 
 const (
@@ -160,19 +158,9 @@ func GenerateKubeVirtGroupVersionKind(obj runtime.Object) (runtime.Object, error
 }
 
 func PathForSwtpm(vmi *v1.VirtualMachineInstance) string {
-	swtpmPath := "/var/lib/libvirt/swtpm"
-	if vmitrait.IsNonRoot(vmi) {
-		swtpmPath = filepath.Join(VirtPrivateDir, "libvirt", "qemu", "swtpm")
-	}
-
-	return swtpmPath
+	return filepath.Join(VirtPrivateDir, "libvirt", "qemu", "swtpm")
 }
 
 func PathForNVram(vmi *v1.VirtualMachineInstance) string {
-	nvramPath := "/var/lib/libvirt/qemu/nvram"
-	if vmitrait.IsNonRoot(vmi) {
-		nvramPath = filepath.Join(VirtPrivateDir, "libvirt", "qemu", "nvram")
-	}
-
-	return nvramPath
+	return filepath.Join(VirtPrivateDir, "libvirt", "qemu", "nvram")
 }
