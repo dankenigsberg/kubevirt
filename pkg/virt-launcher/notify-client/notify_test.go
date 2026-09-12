@@ -178,7 +178,6 @@ var _ = Describe("Notify", func() {
 					10*time.Second,
 					10*time.Second,
 					metadataCache(),
-					false,
 				)
 				Expect(err).ToNot(HaveOccurred())
 

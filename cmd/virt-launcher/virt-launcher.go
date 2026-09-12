@@ -117,16 +117,14 @@ func startCmdServer(socketPath string,
 	return done
 }
 
-func createLibvirtConnection(runWithNonRoot bool) virtcli.Connection {
-	libvirtUri := "qemu:///system"
+func createLibvirtConnection() virtcli.Connection {
+	libvirtURI := util.LauncherEnv(util.EnvVirtLauncherLibvirtURI, "qemu+unix:///session?socket=/var/run/libvirt/virtqemud-sock")
 	user := ""
-	if runWithNonRoot {
-		const nonRootUserString = "qemu"
-		user = nonRootUserString
-		libvirtUri = "qemu+unix:///session?socket=/var/run/libvirt/virtqemud-sock"
+	if util.LauncherUID() != 0 {
+		user = "qemu"
 	}
 
-	domainConn, err := virtcli.NewConnection(libvirtUri, user, "", 10*time.Second)
+	domainConn, err := virtcli.NewConnection(libvirtURI, user, "", 10*time.Second)
 	if err != nil {
 		panic(fmt.Sprintf("failed to connect to virtqemud: %v", err))
 	}
@@ -147,7 +145,6 @@ func startDomainEventMonitoring(
 	qemuAgentVersionInterval time.Duration,
 	qemuAgentFSFreezeStatusInterval time.Duration,
 	metadataCache *metadata.Cache,
-	nonRoot bool,
 ) {
 	go func() {
 		for {
@@ -158,7 +155,7 @@ func startDomainEventMonitoring(
 		}
 	}()
 
-	err := notifier.StartDomainNotifier(domainConn, deleteNotificationSent, vmi, domainName, agentStore, qemuAgentSysInterval, qemuAgentFileInterval, qemuAgentUserInterval, qemuAgentVersionInterval, qemuAgentFSFreezeStatusInterval, metadataCache, nonRoot)
+	err := notifier.StartDomainNotifier(domainConn, deleteNotificationSent, vmi, domainName, agentStore, qemuAgentSysInterval, qemuAgentFileInterval, qemuAgentUserInterval, qemuAgentVersionInterval, qemuAgentFSFreezeStatusInterval, metadataCache)
 	if err != nil {
 		panic(err)
 	}
@@ -354,7 +351,6 @@ func main() {
 	gracePeriodSeconds := pflag.Int("grace-period-seconds", 30, "Grace period to observe before sending SIGTERM to vmi process")
 	allowEmulation := pflag.Bool("allow-emulation", false, "Allow use of software emulation as fallback")
 	allowCrossArchEmulation := pflag.Bool("allow-cross-arch-emulation", false, "Allow cross-architecture software emulation via QEMU TCG")
-	runWithNonRoot := pflag.Bool("run-as-nonroot", false, "Run virtqemud with the 'virt' user")
 	imageVolumeEnabled := pflag.Bool("image-volume", false, "Generated with ImageVolume instead of containerDisk") //remove this once ImageVolume is GAed
 	vGPUDedicatedHookEnabled := pflag.Bool("vgpu-dedicated-hook", false, "Enable target mdev UUID mutation for vGPU live migration")
 	vmStatsCollectorEnabled := pflag.Bool("vm-stats-collector", false, "Enable additional guest agent polling workers for VMStats monitoring data collection")
@@ -391,7 +387,7 @@ func main() {
 	// Initialize local and shared directories
 	initializeDirs(*ephemeralDiskDir, *containerDiskDir, *hotplugDiskDir, *uid)
 
-	if !*runWithNonRoot {
+	if util.LauncherUID() == 0 {
 		err := virtlauncher.InitializeConsoleLogFile(filepath.Join("/var/run/kubevirt-private", *uid))
 		if err != nil {
 			panic(err)
@@ -419,7 +415,7 @@ func main() {
 	// Start virtqemud, virtlogd, and establish libvirt connection
 	stopChan := make(chan struct{})
 
-	l := util.NewLibvirtWrapper(*runWithNonRoot)
+	l := util.NewLibvirtWrapper()
 	err = l.SetupLibvirt(libvirtLogFilters)
 	if err != nil {
 		panic(err)
@@ -429,9 +425,9 @@ func main() {
 	// only single domain should be present
 	domainName := api.VMINamespaceKeyFunc(vmi)
 
-	util.StartVirtlog(stopChan, domainName, *runWithNonRoot)
+	util.StartVirtlog(stopChan, domainName)
 
-	domainConn := createLibvirtConnection(*runWithNonRoot)
+	domainConn := createLibvirtConnection()
 	defer domainConn.Close()
 
 	var agentStore = agentpoller.NewAsyncAgentStore()
@@ -505,7 +501,7 @@ func main() {
 
 	events := make(chan watch.Event, 2)
 	// Send domain notifications to virt-handler
-	startDomainEventMonitoring(notifier, domainConn, events, vmi, domainName, &agentStore, *qemuAgentSysInterval, *qemuAgentFileInterval, *qemuAgentUserInterval, *qemuAgentVersionInterval, *qemuAgentFSFreezeStatusInterval, metadataCache, *runWithNonRoot)
+	startDomainEventMonitoring(notifier, domainConn, events, vmi, domainName, &agentStore, *qemuAgentSysInterval, *qemuAgentFileInterval, *qemuAgentUserInterval, *qemuAgentVersionInterval, *qemuAgentFSFreezeStatusInterval, metadataCache)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt,
@@ -529,12 +525,7 @@ func main() {
 	standalone.HandleStandaloneMode(domainManager)
 	domain := waitForDomainUUID(*qemuTimeout, events, signalStopChan, domainManager)
 	if domain != nil {
-		var pidDir string
-		if *runWithNonRoot {
-			pidDir = "/run/libvirt/qemu/run"
-		} else {
-			pidDir = "/run/libvirt/qemu"
-		}
+		pidDir := util.LauncherEnv("VIRT_LAUNCHER_PID_DIR", "/run/libvirt/qemu/run")
 		mon := virtlauncher.NewProcessMonitor(domainName,
 			pidDir,
 			*gracePeriodSeconds,

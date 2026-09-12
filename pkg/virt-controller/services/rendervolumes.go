@@ -24,7 +24,6 @@ import (
 	"kubevirt.io/kubevirt/pkg/storage/types"
 	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virtiofs"
-	"kubevirt.io/kubevirt/pkg/vmitrait"
 )
 
 type VolumeRendererOption func(renderer *VolumeRenderer) error
@@ -408,26 +407,24 @@ func withBackendStorage(vmi *v1.VirtualMachineInstance, backendStoragePVCName st
 			SubPath:   "meta",
 		})
 
-		if vmitrait.IsNonRoot(vmi) {
-			// For non-root VMIs, the TPM state lives under /var/run/kubevirt-private/libvirt/qemu/swtpm
-			// To persist it, we need the persistent PVC to be mounted under that location.
-			// /var/run/kubevirt-private is an emptyDir, and k8s would automatically create the right sub-directories under it.
-			// However, the sub-directories would get created as root:<fsGroup>, with a mode like 0755 (drwxr-xr-x), preventing write access to them.
-			// Depending on the storage class used, the SELinux label of the sub-directories can also be problematic (like nfs_t for nfs-csi).
-			// Creating emptydirs for each intermediate directory (+ setting fsGroup to 107) solves both issues.
-			// The only viable alternative would be to use an init container to `mkdir -p /var/run/kubevirt-private/libvirt/qemu/swtpm`,
-			//   but init containers are expensive, and emptyDirs were deemed to be the least undesirable approach.
-			renderer.podVolumes = append(renderer.podVolumes,
-				emptyDirVolume("private-libvirt"),
-				emptyDirVolume("private-libvirt-qemu"))
-			renderer.podVolumeMounts = append(renderer.podVolumeMounts, k8sv1.VolumeMount{
-				Name:      "private-libvirt",
-				MountPath: filepath.Join(util.VirtPrivateDir, "libvirt"),
-			}, k8sv1.VolumeMount{
-				Name:      "private-libvirt-qemu",
-				MountPath: filepath.Join(util.VirtPrivateDir, "libvirt", "qemu"),
-			})
-		}
+		// For non-root VMIs, the TPM state lives under /var/run/kubevirt-private/libvirt/qemu/swtpm
+		// To persist it, we need the persistent PVC to be mounted under that location.
+		// /var/run/kubevirt-private is an emptyDir, and k8s would automatically create the right sub-directories under it.
+		// However, the sub-directories would get created as root:<fsGroup>, with a mode like 0755 (drwxr-xr-x), preventing write access to them.
+		// Depending on the storage class used, the SELinux label of the sub-directories can also be problematic (like nfs_t for nfs-csi).
+		// Creating emptydirs for each intermediate directory (+ setting fsGroup to 107) solves both issues.
+		// The only viable alternative would be to use an init container to `mkdir -p /var/run/kubevirt-private/libvirt/qemu/swtpm`,
+		//   but init containers are expensive, and emptyDirs were deemed to be the least undesirable approach.
+		renderer.podVolumes = append(renderer.podVolumes,
+			emptyDirVolume("private-libvirt"),
+			emptyDirVolume("private-libvirt-qemu"))
+		renderer.podVolumeMounts = append(renderer.podVolumeMounts, k8sv1.VolumeMount{
+			Name:      "private-libvirt",
+			MountPath: filepath.Join(util.VirtPrivateDir, "libvirt"),
+		}, k8sv1.VolumeMount{
+			Name:      "private-libvirt-qemu",
+			MountPath: filepath.Join(util.VirtPrivateDir, "libvirt", "qemu"),
+		})
 
 		if tpm.HasPersistentDevice(&vmi.Spec) {
 			renderer.podVolumeMounts = append(renderer.podVolumeMounts, k8sv1.VolumeMount{
@@ -438,7 +435,7 @@ func withBackendStorage(vmi *v1.VirtualMachineInstance, backendStoragePVCName st
 			}, k8sv1.VolumeMount{
 				Name:      volumeName,
 				ReadOnly:  false,
-				MountPath: pathForSwtpmLocalca(vmi),
+				MountPath: pathForSwtpmLocalca(),
 				SubPath:   "swtpm-localca",
 			})
 		}
@@ -870,10 +867,6 @@ func shouldAddLauncherBinaryVolume(vmi *v1.VirtualMachineInstance, imageIDs map[
 	return util.HasKernelBootContainerImage(vmi) && !kernelBootImageIDAlreadyExists
 }
 
-func pathForSwtpmLocalca(vmi *v1.VirtualMachineInstance) string {
-	localCaPath := "/var/lib/swtpm-localca"
-	if vmitrait.IsNonRoot(vmi) {
-		localCaPath = filepath.Join(util.VirtPrivateDir, "var", "lib", "swtpm-localca")
-	}
-	return localCaPath
+func pathForSwtpmLocalca() string {
+	return filepath.Join(util.VirtPrivateDir, "var", "lib", "swtpm-localca")
 }

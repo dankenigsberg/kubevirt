@@ -96,18 +96,35 @@ var PausedReasonTranslationMap = map[libvirt.DomainPausedReason]api.StateChangeR
 
 var getHookManager = hooks.GetManager
 
+const (
+	EnvVirtLauncherUID       = "VIRT_LAUNCHER_UID"
+	EnvVirtLauncherLogDir    = "VIRT_LAUNCHER_LOG_DIR"
+	EnvVirtLauncherLibvirtURI = "VIRT_LAUNCHER_LIBVIRT_URI"
+)
+
+func LauncherEnv(name, defaultVal string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return defaultVal
+}
+
+func LauncherUID() uint32 {
+	s := LauncherEnv(EnvVirtLauncherUID, strconv.Itoa(int(util.NonRootUID)))
+	uid, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return util.NonRootUID
+	}
+	return uint32(uid)
+}
+
 type LibvirtWrapper struct {
 	user uint32
 }
 
-func NewLibvirtWrapper(nonRoot bool) *LibvirtWrapper {
-	if nonRoot {
-		return &LibvirtWrapper{
-			user: util.NonRootUID,
-		}
-	}
+func NewLibvirtWrapper() *LibvirtWrapper {
 	return &LibvirtWrapper{
-		user: util.RootUser,
+		user: LauncherUID(),
 	}
 }
 
@@ -315,15 +332,14 @@ func (l LibvirtWrapper) StartVirtqemud(stopChan chan struct{}) {
 	}()
 }
 
-// GetQemuLogPath returns the path to the QEMU log file for a domain
-func GetQemuLogPath(domainName string, nonRoot bool) string {
-	if nonRoot {
-		return filepath.Join("/var", "run", "kubevirt-private", "libvirt", "qemu", "log", fmt.Sprintf("%s.log", domainName))
-	}
-	return filepath.Join("/var", "log", "libvirt", "qemu", fmt.Sprintf("%s.log", domainName))
+const defaultNonRootLogDir = "/var/run/kubevirt-private/libvirt/qemu/log"
+
+func GetQemuLogPath(domainName string) string {
+	logDir := LauncherEnv(EnvVirtLauncherLogDir, defaultNonRootLogDir)
+	return filepath.Join(logDir, fmt.Sprintf("%s.log", domainName))
 }
 
-func startVirtlogdLogging(stopChan chan struct{}, domainName string, nonRoot bool) {
+func startVirtlogdLogging(stopChan chan struct{}, domainName string) {
 	for {
 		cmd := exec.Command("/usr/sbin/virtlogd", "-f", "/etc/libvirt/virtlogd.conf")
 
@@ -336,7 +352,7 @@ func startVirtlogdLogging(stopChan chan struct{}, domainName string, nonRoot boo
 		}
 
 		go func() {
-			logfile := GetQemuLogPath(domainName, nonRoot)
+			logfile := GetQemuLogPath(domainName)
 
 			// It can take a few seconds to the log file to be created
 			for {
@@ -433,8 +449,8 @@ func startQEMUSeaBiosLogging(stopChan chan struct{}) {
 	}
 }
 
-func StartVirtlog(stopChan chan struct{}, domainName string, nonRoot bool) {
-	go startVirtlogdLogging(stopChan, domainName, nonRoot)
+func StartVirtlog(stopChan chan struct{}, domainName string) {
+	go startVirtlogdLogging(stopChan, domainName)
 	go startQEMUSeaBiosLogging(stopChan)
 }
 
@@ -533,7 +549,7 @@ func copyFile(from, to string) error {
 
 func (l LibvirtWrapper) SetupLibvirt(customLogFilters *string) (err error) {
 	runtimeQemuConfPath := qemuConfPath
-	if !l.root() {
+	if l.user != 0 {
 		runtimeQemuConfPath = qemuNonRootConfPath
 
 		if err := os.MkdirAll(libvirtHomePath, 0755); err != nil {
@@ -635,6 +651,3 @@ func getLibvirtLogFilters(customLogFilters, libvirtLogVerbosityEnvVar *string, l
 	return logFilters + allowAllOtherCategories, true
 }
 
-func (l LibvirtWrapper) root() bool {
-	return l.user == 0
-}

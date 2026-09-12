@@ -1354,12 +1354,12 @@ func (l *LibvirtDomainManager) migrateHelper(vmi *v1.VirtualMachineInstance, opt
 	}
 
 	// initiate the live migration
-	var dstURI string
-	if vmitrait.IsNonRoot(vmi) {
-		dstURI = fmt.Sprintf("qemu+unix:///session?socket=%s", migrationproxy.SourceUnixFile(l.virtShareDir, string(vmi.UID)))
-	} else {
-		dstURI = fmt.Sprintf("qemu+unix:///system?socket=%s", migrationproxy.SourceUnixFile(l.virtShareDir, string(vmi.UID)))
+	baseURI := util.LauncherEnv(util.EnvVirtLauncherLibvirtURI, "qemu+unix:///session")
+	libvirtScheme := "session"
+	if strings.Contains(baseURI, "///system") {
+		libvirtScheme = "system"
 	}
+	dstURI := fmt.Sprintf("qemu+unix:///%s?socket=%s", libvirtScheme, migrationproxy.SourceUnixFile(l.virtShareDir, string(vmi.UID)))
 
 	err = dom.MigrateToURI3(dstURI, params, migrateFlags)
 	l.abortWg.Wait() // wait for in-flight cancellation
