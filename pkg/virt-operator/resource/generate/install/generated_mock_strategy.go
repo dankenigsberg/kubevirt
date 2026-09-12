@@ -26,6 +26,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	v18 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	v1beta1 "kubevirt.io/api/instancetype/v1beta1"
+	pluginv1alpha1 "kubevirt.io/api/plugin/v1alpha1"
 )
 
 // MockAPIServiceInterface is a mock of APIServiceInterface interface.
@@ -516,4 +517,18 @@ func (m *MockStrategyInterface) VirtTemplateDeployments() []*v13.Deployment {
 func (mr *MockStrategyInterfaceMockRecorder) VirtTemplateDeployments() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VirtTemplateDeployments", reflect.TypeOf((*MockStrategyInterface)(nil).VirtTemplateDeployments))
+}
+
+// Plugins mocks base method.
+func (m *MockStrategyInterface) Plugins() []*pluginv1alpha1.Plugin {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Plugins")
+	ret0, _ := ret[0].([]*pluginv1alpha1.Plugin)
+	return ret0
+}
+
+// Plugins indicates an expected call of Plugins.
+func (mr *MockStrategyInterfaceMockRecorder) Plugins() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Plugins", reflect.TypeOf((*MockStrategyInterface)(nil).Plugins))
 }

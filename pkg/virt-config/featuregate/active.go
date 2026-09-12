@@ -41,7 +41,14 @@ const (
 	UtilityVolumesGate = "UtilityVolumes"
 
 	DownwardMetricsFeatureGate = "DownwardMetrics"
-	Root                       = "Root"
+
+	// Owner: sig-compute
+	// Alpha: v0.58.0
+	//
+	// Root controls whether virt-operator deploys the root-launcher Plugin CR.
+	// When enabled, VMs can opt in to running virt-launcher as root (UID 0)
+	// by setting the kubevirt.io/nonroot annotation to "false".
+	Root = "Root"
 
 	// Owner: sig-compute / @alancaldelas
 	// Alpha: v0.49.0
@@ -280,7 +287,6 @@ func init() {
 	RegisterFeatureGate(FeatureGate{Name: SnapshotGate, State: Beta})
 	RegisterFeatureGate(FeatureGate{Name: HostDiskGate, State: Alpha})
 	RegisterFeatureGate(FeatureGate{Name: DownwardMetricsFeatureGate, State: Alpha})
-	RegisterFeatureGate(FeatureGate{Name: Root, State: Alpha})
 	RegisterFeatureGate(FeatureGate{Name: WorkloadEncryptionSEV, State: Beta})
 	RegisterFeatureGate(FeatureGate{Name: WorkloadEncryptionTDX, State: Alpha})
 	RegisterFeatureGate(FeatureGate{Name: VSOCKGate, State: Alpha})
@@ -307,6 +313,7 @@ func init() {
 	RegisterFeatureGate(FeatureGate{Name: VMStatsCollector, State: Alpha})
 	RegisterFeatureGate(FeatureGate{Name: OCIExport, State: Alpha})
 	RegisterFeatureGate(FeatureGate{Name: PluginsGate, State: Alpha})
+	RegisterFeatureGate(FeatureGate{Name: Root, State: Alpha})
 	RegisterFeatureGate(FeatureGate{Name: GraceIOVirtualization, State: Alpha})
 	RegisterFeatureGate(FeatureGate{Name: IOMMUFDGate, State: Alpha})
 	RegisterFeatureGate(FeatureGate{Name: FirmwareAutoSelection, State: Alpha})

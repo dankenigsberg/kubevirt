@@ -51,6 +51,7 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 	instancetypev1beta1 "kubevirt.io/api/instancetype/v1beta1"
+	pluginv1alpha1 "kubevirt.io/api/plugin/v1alpha1"
 	"kubevirt.io/client-go/log"
 
 	"kubevirt.io/kubevirt/pkg/monitoring/rules"
@@ -100,6 +101,7 @@ type StrategyInterface interface {
 	Preferences() []*instancetypev1beta1.VirtualMachineClusterPreference
 	ValidatingAdmissionPolicyBindings() []*admissionregistrationv1.ValidatingAdmissionPolicyBinding
 	ValidatingAdmissionPolicies() []*admissionregistrationv1.ValidatingAdmissionPolicy
+	Plugins() []*pluginv1alpha1.Plugin
 }
 
 type Strategy struct {
@@ -129,6 +131,7 @@ type Strategy struct {
 	preferences                       []*instancetypev1beta1.VirtualMachineClusterPreference
 	validatingAdmissionPolicyBindings []*admissionregistrationv1.ValidatingAdmissionPolicyBinding
 	validatingAdmissionPolicies       []*admissionregistrationv1.ValidatingAdmissionPolicy
+	plugins                           []*pluginv1alpha1.Plugin
 }
 
 func (ins *Strategy) ServiceAccounts() []*corev1.ServiceAccount {
@@ -283,6 +286,10 @@ func (ins *Strategy) ValidatingAdmissionPolicyBindings() []*admissionregistratio
 
 func (ins *Strategy) ValidatingAdmissionPolicies() []*admissionregistrationv1.ValidatingAdmissionPolicy {
 	return ins.validatingAdmissionPolicies
+}
+
+func (ins *Strategy) Plugins() []*pluginv1alpha1.Plugin {
+	return ins.plugins
 }
 
 func encodeManifests(manifests []byte) (string, error) {
@@ -482,6 +489,9 @@ func dumpInstallStrategyToBytes(strategy *Strategy) []byte {
 	for _, entry := range strategy.preferences {
 		marshalutil.MarshallObject(entry, writer)
 	}
+	for _, entry := range strategy.plugins {
+		marshalutil.MarshallObject(entry, writer)
+	}
 	writer.Flush()
 
 	return b.Bytes()
@@ -657,6 +667,10 @@ func GenerateCurrentInstallStrategy(config *operatorutil.KubeVirtDeploymentConfi
 		return nil, fmt.Errorf("error generating preferences for environment %v", err)
 	}
 	strategy.preferences = preferences
+
+	if config.RootEnabled() {
+		strategy.plugins = append(strategy.plugins, components.NewRootLauncherPlugin())
+	}
 
 	if config.VirtTemplateDeploymentEnabled() {
 		resources, err := components.NewVirtTemplateResources(config)
@@ -941,6 +955,12 @@ func loadInstallStrategyFromBytes(data string) (*Strategy, error) {
 				return nil, err
 			}
 			strategy.preferences = append(strategy.preferences, preference)
+		case "Plugin":
+			plugin := &pluginv1alpha1.Plugin{}
+			if err := yaml.Unmarshal([]byte(entry), &plugin); err != nil {
+				return nil, err
+			}
+			strategy.plugins = append(strategy.plugins, plugin)
 		default:
 			return nil, fmt.Errorf("UNKNOWN TYPE %s detected", obj.Kind)
 
