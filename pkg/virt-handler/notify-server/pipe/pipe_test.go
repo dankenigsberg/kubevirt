@@ -53,9 +53,17 @@ var _ = Describe("InjectNotify", func() {
 		pod.EXPECT().MountRoot().Return(safeTmp, nil)
 
 		socketPath = filepath.Join(tmp, "dir", "domain-notify-pipe.sock")
+
+		original := diskutils.DefaultOwnershipManager
+		DeferCleanup(func() {
+			diskutils.DefaultOwnershipManager = original
+		})
+		ownershipManager := diskutils.NewMockOwnershipManagerInterface(gomock.NewController(GinkgoT()))
+		diskutils.DefaultOwnershipManager = ownershipManager
+		ownershipManager.EXPECT().SetFileOwnership(gomock.Any()).Times(1)
 	})
 	It("should return working listener", func() {
-		listener, err := InjectNotify(pod, "dir", false)
+		listener, err := InjectNotify(pod, "dir")
 		Expect(err).ToNot(HaveOccurred())
 		defer listener.Close()
 
@@ -72,16 +80,8 @@ var _ = Describe("InjectNotify", func() {
 		Eventually(resultChan).Should(Receive(BeNil()))
 	})
 
-	It("should make it accessible for nonroot", func() {
-		original := diskutils.DefaultOwnershipManager
-		DeferCleanup(func() {
-			diskutils.DefaultOwnershipManager = original
-		})
-		ownershipManager := diskutils.NewMockOwnershipManagerInterface(gomock.NewController(GinkgoT()))
-		diskutils.DefaultOwnershipManager = ownershipManager
-		ownershipManager.EXPECT().SetFileOwnership(gomock.Any()).Times(1)
-
-		listener, err := InjectNotify(pod, "dir", true)
+	It("should set socket ownership to qemu user", func() {
+		listener, err := InjectNotify(pod, "dir")
 		Expect(err).ToNot(HaveOccurred())
 		defer listener.Close()
 	})
@@ -133,9 +133,17 @@ var _ = Describe("ChanFromListener", func() {
 		pod := isolation.NewMockIsolationResult(gomock.NewController(GinkgoT()))
 		pod.EXPECT().MountRoot().Return(safeTmp, nil)
 
+		original := diskutils.DefaultOwnershipManager
+		DeferCleanup(func() {
+			diskutils.DefaultOwnershipManager = original
+		})
+		ownershipManager := diskutils.NewMockOwnershipManagerInterface(gomock.NewController(GinkgoT()))
+		diskutils.DefaultOwnershipManager = ownershipManager
+		ownershipManager.EXPECT().SetFileOwnership(gomock.Any()).Times(1)
+
 		socketPath := filepath.Join(tmp, "dir", "domain-notify-pipe.sock")
 
-		listener, err := InjectNotify(pod, "dir", false)
+		listener, err := InjectNotify(pod, "dir")
 		Expect(err).ToNot(HaveOccurred())
 		defer listener.Close()
 		ctx, cancelListener := context.WithCancel(context.Background())
