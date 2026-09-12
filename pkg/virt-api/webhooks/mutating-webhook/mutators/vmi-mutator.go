@@ -83,9 +83,7 @@ func ApplyNewVMIMutations(newVMI *v1.VirtualMachineInstance, clusterConfig *virt
 		}
 	}
 
-	if !clusterConfig.RootEnabled() {
-		markAsNonroot(newVMI)
-	}
+	markAsNonroot(newVMI)
 
 	return nil
 }

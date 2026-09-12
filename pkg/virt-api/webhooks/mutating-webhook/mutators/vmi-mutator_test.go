@@ -1140,25 +1140,6 @@ var _ = Describe("VirtualMachineInstance Mutator", func() {
 			}),
 	)
 
-	When("Root feature gate is enabled", func() {
-
-		BeforeEach(func() {
-			testutils.UpdateFakeKubeVirtClusterConfig(kvStore, &v1.KubeVirt{
-				Spec: v1.KubeVirtSpec{
-					Configuration: v1.KubeVirtConfiguration{
-						DeveloperConfiguration: &v1.DeveloperConfiguration{
-							FeatureGates: []string{featuregate.Root},
-						},
-					},
-				},
-			})
-		})
-
-		It("Should not tag vmi as non-root ", func() {
-			_, _, status := getMetaSpecStatusFromAdmit()
-			Expect(status.RuntimeUser).To(BeZero())
-		})
-	})
 	It("Should tag vmi as non-root ", func() {
 		_, _, status := getMetaSpecStatusFromAdmit()
 		Expect(status.RuntimeUser).NotTo(BeZero())
