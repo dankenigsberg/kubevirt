@@ -119,6 +119,8 @@ func NewKubeVirtController(
 		PrometheusRuleCache:                   informers.PrometheusRule.GetStore(),
 		ValidatingAdmissionPolicyCache:        informers.ValidatingAdmissionPolicy.GetStore(),
 		ValidatingAdmissionPolicyBindingCache: informers.ValidatingAdmissionPolicyBinding.GetStore(),
+		MutatingAdmissionPolicyCache:          informers.MutatingAdmissionPolicy.GetStore(),
+		MutatingAdmissionPolicyBindingCache:   informers.MutatingAdmissionPolicyBinding.GetStore(),
 	}
 
 	c := KubeVirtController{
@@ -156,6 +158,8 @@ func NewKubeVirtController(
 			ConfigMap:                        controller.NewUIDTrackingControllerExpectations(controller.NewControllerExpectationsWithName("ConfigMap")),
 			ValidatingAdmissionPolicyBinding: controller.NewUIDTrackingControllerExpectations(controller.NewControllerExpectationsWithName("ValidatingAdmissionPolicyBinding")),
 			ValidatingAdmissionPolicy:        controller.NewUIDTrackingControllerExpectations(controller.NewControllerExpectationsWithName("ValidatingAdmissionPolicy")),
+			MutatingAdmissionPolicy:          controller.NewUIDTrackingControllerExpectations(controller.NewControllerExpectationsWithName("MutatingAdmissionPolicy")),
+			MutatingAdmissionPolicyBinding:   controller.NewUIDTrackingControllerExpectations(controller.NewControllerExpectationsWithName("MutatingAdmissionPolicyBinding")),
 		},
 
 		operatorNamespace: operatorNamespace,
@@ -188,6 +192,8 @@ func NewKubeVirtController(
 			informers.ConfigMap.HasSynced() &&
 			informers.ValidatingAdmissionPolicyBinding.HasSynced() &&
 			informers.ValidatingAdmissionPolicy.HasSynced() &&
+			informers.MutatingAdmissionPolicy.HasSynced() &&
+			informers.MutatingAdmissionPolicyBinding.HasSynced() &&
 			informers.Leases.HasSynced()
 	}
 
@@ -565,6 +571,36 @@ func NewKubeVirtController(
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			c.genericUpdateHandler(oldObj, newObj, c.kubeVirtExpectations.ValidatingAdmissionPolicy)
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = informers.MutatingAdmissionPolicyBinding.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			c.genericAddHandler(obj, c.kubeVirtExpectations.MutatingAdmissionPolicyBinding)
+		},
+		DeleteFunc: func(obj interface{}) {
+			c.genericDeleteHandler(obj, c.kubeVirtExpectations.MutatingAdmissionPolicyBinding)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			c.genericUpdateHandler(oldObj, newObj, c.kubeVirtExpectations.MutatingAdmissionPolicyBinding)
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = informers.MutatingAdmissionPolicy.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			c.genericAddHandler(obj, c.kubeVirtExpectations.MutatingAdmissionPolicy)
+		},
+		DeleteFunc: func(obj interface{}) {
+			c.genericDeleteHandler(obj, c.kubeVirtExpectations.MutatingAdmissionPolicy)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			c.genericUpdateHandler(oldObj, newObj, c.kubeVirtExpectations.MutatingAdmissionPolicy)
 		},
 	})
 	if err != nil {

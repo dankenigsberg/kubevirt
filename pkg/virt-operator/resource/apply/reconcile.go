@@ -493,6 +493,16 @@ func (r *Reconciler) Sync(queue workqueue.TypedRateLimitingInterface[string]) (b
 		return false, err
 	}
 
+	err = r.createOrUpdateMutatingAdmissionPolicyBindings()
+	if err != nil {
+		return false, err
+	}
+
+	err = r.createOrUpdateMutatingAdmissionPolicies()
+	if err != nil {
+		return false, err
+	}
+
 	err = r.createOrUpdateComponentsWithCertificates(queue)
 	if err != nil {
 		return false, err
@@ -860,6 +870,56 @@ func (r *Reconciler) deleteObjectsNotInInstallStrategy() error {
 					if err != nil {
 						r.expectations.ValidatingAdmissionPolicy.DeletionObserved(r.kvKey, key)
 						log.Log.Errorf("Failed to delete validatingAdmissionPolicy %+v: %v", validatingAdmissionPolicy, err)
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// remove unused MutatingAdmissionPolicyBinding
+	objects = r.stores.MutatingAdmissionPolicyBindingCache.List()
+	for _, obj := range objects {
+		if mutatingAdmissionPolicyBinding, ok := obj.(*admissionregistrationv1.MutatingAdmissionPolicyBinding); ok && mutatingAdmissionPolicyBinding.DeletionTimestamp == nil {
+			found := false
+			for _, targetMutatingAdmissionPolicyBinding := range r.targetStrategy.MutatingAdmissionPolicyBindings() {
+				if targetMutatingAdmissionPolicyBinding.Name == mutatingAdmissionPolicyBinding.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				if key, err := controller.KeyFunc(mutatingAdmissionPolicyBinding); err == nil {
+					r.expectations.MutatingAdmissionPolicyBinding.AddExpectedDeletion(r.kvKey, key)
+					err := r.k8sClient.AdmissionregistrationV1().MutatingAdmissionPolicyBindings().Delete(context.Background(), mutatingAdmissionPolicyBinding.Name, deleteOptions)
+					if err != nil {
+						r.expectations.MutatingAdmissionPolicyBinding.DeletionObserved(r.kvKey, key)
+						log.Log.Errorf("Failed to delete mutatingAdmissionPolicyBinding %+v: %v", mutatingAdmissionPolicyBinding, err)
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// remove unused MutatingAdmissionPolicy
+	objects = r.stores.MutatingAdmissionPolicyCache.List()
+	for _, obj := range objects {
+		if mutatingAdmissionPolicy, ok := obj.(*admissionregistrationv1.MutatingAdmissionPolicy); ok && mutatingAdmissionPolicy.DeletionTimestamp == nil {
+			found := false
+			for _, targetMutatingAdmissionPolicy := range r.targetStrategy.MutatingAdmissionPolicies() {
+				if targetMutatingAdmissionPolicy.Name == mutatingAdmissionPolicy.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				if key, err := controller.KeyFunc(mutatingAdmissionPolicy); err == nil {
+					r.expectations.MutatingAdmissionPolicy.AddExpectedDeletion(r.kvKey, key)
+					err := r.k8sClient.AdmissionregistrationV1().MutatingAdmissionPolicies().Delete(context.Background(), mutatingAdmissionPolicy.Name, deleteOptions)
+					if err != nil {
+						r.expectations.MutatingAdmissionPolicy.DeletionObserved(r.kvKey, key)
+						log.Log.Errorf("Failed to delete mutatingAdmissionPolicy %+v: %v", mutatingAdmissionPolicy, err)
 						return err
 					}
 				}

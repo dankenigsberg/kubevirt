@@ -501,6 +501,42 @@ func DeleteAll(kv *v1.KubeVirt,
 		}
 	}
 
+	objects = stores.MutatingAdmissionPolicyBindingCache.List()
+	for _, obj := range objects {
+		if mutatingAdmissionPolicyBinding, ok := obj.(*admissionregistrationv1.MutatingAdmissionPolicyBinding); ok && mutatingAdmissionPolicyBinding.DeletionTimestamp == nil {
+			if key, err := controller.KeyFunc(mutatingAdmissionPolicyBinding); err == nil {
+				expectations.MutatingAdmissionPolicyBinding.AddExpectedDeletion(kvkey, key)
+				err := k8sClient.AdmissionregistrationV1().MutatingAdmissionPolicyBindings().Delete(context.Background(), mutatingAdmissionPolicyBinding.Name, deleteOptions)
+				if err != nil {
+					expectations.MutatingAdmissionPolicyBinding.DeletionObserved(kvkey, key)
+					log.Log.Errorf("Failed to delete mutatingAdmissionPolicyBinding %+v: %v", mutatingAdmissionPolicyBinding, err)
+					return err
+				}
+			}
+		} else if !ok {
+			log.Log.Errorf(castFailedFmt, obj)
+			return nil
+		}
+	}
+
+	objects = stores.MutatingAdmissionPolicyCache.List()
+	for _, obj := range objects {
+		if mutatingAdmissionPolicy, ok := obj.(*admissionregistrationv1.MutatingAdmissionPolicy); ok && mutatingAdmissionPolicy.DeletionTimestamp == nil {
+			if key, err := controller.KeyFunc(mutatingAdmissionPolicy); err == nil {
+				expectations.MutatingAdmissionPolicy.AddExpectedDeletion(kvkey, key)
+				err := k8sClient.AdmissionregistrationV1().MutatingAdmissionPolicies().Delete(context.Background(), mutatingAdmissionPolicy.Name, deleteOptions)
+				if err != nil {
+					expectations.MutatingAdmissionPolicy.DeletionObserved(kvkey, key)
+					log.Log.Errorf("Failed to delete mutatingAdmissionPolicy %+v: %v", mutatingAdmissionPolicy, err)
+					return err
+				}
+			}
+		} else if !ok {
+			log.Log.Errorf(castFailedFmt, obj)
+			return nil
+		}
+	}
+
 	if err = deleteKubeVirtLabelsFromNodes(k8sClient); err != nil {
 		return err
 	}

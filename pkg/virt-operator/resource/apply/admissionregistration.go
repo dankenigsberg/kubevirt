@@ -517,3 +517,133 @@ func (r *Reconciler) createOrUpdateValidatingAdmissionPolicy(validatingAdmission
 	log.Log.V(2).Infof("validatingAdmissionPolicy %v patched", validatingAdmissionPolicy.GetName())
 	return nil
 }
+
+func (r *Reconciler) createOrUpdateMutatingAdmissionPolicyBindings() error {
+	if !r.config.MutatingAdmissionPolicyBindingEnabled {
+		return nil
+	}
+
+	for _, mutatingAdmissionPolicyBinding := range r.targetStrategy.MutatingAdmissionPolicyBindings() {
+		err := r.createOrUpdateMutatingAdmissionPolicyBinding(mutatingAdmissionPolicyBinding.DeepCopy())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Reconciler) createOrUpdateMutatingAdmissionPolicyBinding(mutatingAdmissionPolicyBinding *admissionregistrationv1.MutatingAdmissionPolicyBinding) error {
+	admissionRegistrationV1 := r.k8sClient.AdmissionregistrationV1()
+	version, imageRegistry, id := getTargetVersionRegistryID(r.kv)
+
+	injectOperatorMetadata(r.kv, &mutatingAdmissionPolicyBinding.ObjectMeta, version, imageRegistry, id, true)
+
+	obj, exists, _ := r.stores.MutatingAdmissionPolicyBindingCache.Get(mutatingAdmissionPolicyBinding)
+
+	if !exists {
+		r.expectations.MutatingAdmissionPolicyBinding.RaiseExpectations(r.kvKey, 1, 0)
+		_, err := admissionRegistrationV1.MutatingAdmissionPolicyBindings().Create(context.Background(), mutatingAdmissionPolicyBinding, metav1.CreateOptions{})
+		if err != nil {
+			r.expectations.MutatingAdmissionPolicyBinding.LowerExpectations(r.kvKey, 1, 0)
+			log.Log.V(2).Infof("failed to create mutatingAdmissionPolicyBinding %s: %+v", mutatingAdmissionPolicyBinding.Name, mutatingAdmissionPolicyBinding)
+			return fmt.Errorf("unable to create mutatingAdmissionPolicyBinding %s: %v", mutatingAdmissionPolicyBinding.Name, err)
+		}
+
+		return nil
+	}
+
+	cachedMutatingAdmissionPolicyBinding := obj.(*admissionregistrationv1.MutatingAdmissionPolicyBinding)
+
+	patchSet := patch.New()
+	patchSet.AddOption(getObjectMetaPatch(mutatingAdmissionPolicyBinding.ObjectMeta,
+		cachedMutatingAdmissionPolicyBinding.ObjectMeta)...)
+
+	if !equality.Semantic.DeepEqual(cachedMutatingAdmissionPolicyBinding.Spec, mutatingAdmissionPolicyBinding.Spec) {
+		patchSet.AddOption(patch.WithReplace("/spec", mutatingAdmissionPolicyBinding.Spec))
+	}
+	if patchSet.IsEmpty() {
+		log.Log.V(4).Infof("mutatingAdmissionPolicyBinding %v is up-to-date", mutatingAdmissionPolicyBinding.GetName())
+		return nil
+	}
+	p, err := patchSet.GeneratePayload()
+	if err != nil {
+		log.Log.V(2).Infof("failed to generate mutatingAdmissionPolicyBinding patch for %s: %+v", mutatingAdmissionPolicyBinding.Name, mutatingAdmissionPolicyBinding)
+		return fmt.Errorf("unable to generate mutatingAdmissionPolicyBinding patch operations for %s: %v", mutatingAdmissionPolicyBinding.Name, err)
+	}
+
+	_, err = admissionRegistrationV1.MutatingAdmissionPolicyBindings().Patch(context.Background(),
+		mutatingAdmissionPolicyBinding.Name,
+		types.JSONPatchType,
+		p,
+		metav1.PatchOptions{})
+	if err != nil {
+		log.Log.V(2).Infof("failed to patch mutatingAdmissionPolicyBinding %s: %+v", mutatingAdmissionPolicyBinding.Name, mutatingAdmissionPolicyBinding)
+		return fmt.Errorf("unable to patch mutatingAdmissionPolicyBinding %s: %v", mutatingAdmissionPolicyBinding.Name, err)
+	}
+
+	log.Log.V(2).Infof("mutatingAdmissionPolicyBinding %v patched", mutatingAdmissionPolicyBinding.GetName())
+	return nil
+}
+
+func (r *Reconciler) createOrUpdateMutatingAdmissionPolicies() error {
+	if !r.config.MutatingAdmissionPolicyEnabled {
+		return nil
+	}
+
+	for _, mutatingAdmissionPolicy := range r.targetStrategy.MutatingAdmissionPolicies() {
+		err := r.createOrUpdateMutatingAdmissionPolicy(mutatingAdmissionPolicy.DeepCopy())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) createOrUpdateMutatingAdmissionPolicy(mutatingAdmissionPolicy *admissionregistrationv1.MutatingAdmissionPolicy) error {
+	admissionRegistrationV1 := r.k8sClient.AdmissionregistrationV1()
+	version, imageRegistry, id := getTargetVersionRegistryID(r.kv)
+
+	injectOperatorMetadata(r.kv, &mutatingAdmissionPolicy.ObjectMeta, version, imageRegistry, id, true)
+
+	obj, exists, _ := r.stores.MutatingAdmissionPolicyCache.Get(mutatingAdmissionPolicy)
+
+	if !exists {
+		r.expectations.MutatingAdmissionPolicy.RaiseExpectations(r.kvKey, 1, 0)
+		_, err := admissionRegistrationV1.MutatingAdmissionPolicies().Create(context.Background(), mutatingAdmissionPolicy, metav1.CreateOptions{})
+		if err != nil {
+			r.expectations.MutatingAdmissionPolicy.LowerExpectations(r.kvKey, 1, 0)
+			log.Log.V(2).Infof("failed to create mutatingAdmissionPolicy %s: %+v", mutatingAdmissionPolicy.Name, mutatingAdmissionPolicy)
+			return fmt.Errorf("unable to create mutatingAdmissionPolicy %s: %v", mutatingAdmissionPolicy.Name, err)
+		}
+
+		return nil
+	}
+
+	cachedMutatingAdmissionPolicy := obj.(*admissionregistrationv1.MutatingAdmissionPolicy)
+
+	patchSet := patch.New()
+	patchSet.AddOption(getObjectMetaPatch(mutatingAdmissionPolicy.ObjectMeta, cachedMutatingAdmissionPolicy.ObjectMeta)...)
+
+	if !equality.Semantic.DeepEqual(cachedMutatingAdmissionPolicy.Spec, mutatingAdmissionPolicy.Spec) {
+		patchSet.AddOption(patch.WithReplace("/spec", mutatingAdmissionPolicy.Spec))
+	}
+	if patchSet.IsEmpty() {
+		log.Log.V(4).Infof("mutatingAdmissionPolicy %v is up-to-date", mutatingAdmissionPolicy.GetName())
+		return nil
+	}
+	p, err := patchSet.GeneratePayload()
+	if err != nil {
+		log.Log.V(2).Infof("failed to generate mutatingAdmissionPolicy patch for %s: %+v", mutatingAdmissionPolicy.Name, mutatingAdmissionPolicy)
+		return fmt.Errorf("unable to generate mutatingAdmissionPolicy patch operations for %s: %v", mutatingAdmissionPolicy.Name, err)
+	}
+
+	_, err = admissionRegistrationV1.MutatingAdmissionPolicies().Patch(context.Background(), mutatingAdmissionPolicy.Name, types.JSONPatchType, p, metav1.PatchOptions{})
+	if err != nil {
+		log.Log.V(2).Infof("failed to patch mutatingAdmissionPolicy %s: %+v", mutatingAdmissionPolicy.Name, mutatingAdmissionPolicy)
+		return fmt.Errorf("unable to patch mutatingAdmissionPolicy %s: %v", mutatingAdmissionPolicy.Name, err)
+	}
+
+	log.Log.V(2).Infof("mutatingAdmissionPolicy %v patched", mutatingAdmissionPolicy.GetName())
+	return nil
+}

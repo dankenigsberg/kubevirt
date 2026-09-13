@@ -319,6 +319,32 @@ func Execute() {
 		app.informers.ValidatingAdmissionPolicy = app.informerFactory.DummyOperatorValidatingAdmissionPolicy()
 	}
 
+	mutatingAdmissionPolicyBindingEnabled, err := util.IsMutatingAdmissionPolicyBindingEnabled(app.virtClient)
+	if err != nil {
+		golog.Fatalf("Error checking for MutatingAdmissionPolicyBinding: %v", err)
+	}
+	if mutatingAdmissionPolicyBindingEnabled {
+		log.Log.Info("mutatingAdmissionPolicyBindingEnabled is defined")
+		app.informers.MutatingAdmissionPolicyBinding = app.informerFactory.OperatorMutatingAdmissionPolicyBinding()
+		app.config.MutatingAdmissionPolicyBindingEnabled = true
+	} else {
+		log.Log.Info("mutatingAdmissionPolicyBindingEnabled is not defined")
+		app.informers.MutatingAdmissionPolicyBinding = app.informerFactory.DummyOperatorMutatingAdmissionPolicyBinding()
+	}
+
+	mutatingAdmissionPolicyEnabled, err := util.IsMutatingAdmissionPolicyEnabled(app.virtClient)
+	if err != nil {
+		golog.Fatalf("Error checking for MutatingAdmissionPolicy: %v", err)
+	}
+	if mutatingAdmissionPolicyEnabled {
+		log.Log.Info("mutatingAdmissionPolicyEnabled is defined")
+		app.informers.MutatingAdmissionPolicy = app.informerFactory.OperatorMutatingAdmissionPolicy()
+		app.config.MutatingAdmissionPolicyEnabled = true
+	} else {
+		log.Log.Info("mutatingAdmissionPolicyEnabled is not defined")
+		app.informers.MutatingAdmissionPolicy = app.informerFactory.DummyOperatorMutatingAdmissionPolicy()
+	}
+
 	app.prepareCertManagers()
 
 	app.kubeVirtRecorder = app.getNewRecorder(k8sv1.NamespaceAll, VirtOperator)

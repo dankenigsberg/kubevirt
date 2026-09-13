@@ -31,8 +31,10 @@ type OperatorConfig struct {
 	IsOnOpenshift                           bool
 	ServiceMonitorEnabled                   bool
 	PrometheusRulesEnabled                  bool
-	ValidatingAdmissionPolicyBindingEnabled bool
-	ValidatingAdmissionPolicyEnabled        bool
+	ValidatingAdmissionPolicyBindingEnabled  bool
+	ValidatingAdmissionPolicyEnabled         bool
+	MutatingAdmissionPolicyBindingEnabled    bool
+	MutatingAdmissionPolicyEnabled           bool
 }
 
 type Stores struct {
@@ -60,9 +62,11 @@ type Stores struct {
 	PrometheusRuleCache                   cache.Store
 	SecretCache                           cache.Store
 	ConfigMapCache                        cache.Store
-	ValidatingAdmissionPolicyBindingCache cache.Store
-	ValidatingAdmissionPolicyCache        cache.Store
-	ClusterInstancetype                   cache.Store
+	ValidatingAdmissionPolicyBindingCache  cache.Store
+	ValidatingAdmissionPolicyCache         cache.Store
+	MutatingAdmissionPolicyCache           cache.Store
+	MutatingAdmissionPolicyBindingCache    cache.Store
+	ClusterInstancetype                    cache.Store
 	ClusterPreference                     cache.Store
 }
 
@@ -87,7 +91,9 @@ func (s *Stores) AllEmpty() bool {
 		IsStoreEmpty(s.SecretCache) &&
 		IsStoreEmpty(s.ConfigMapCache) &&
 		IsStoreEmpty(s.ValidatingAdmissionPolicyBindingCache) &&
-		IsStoreEmpty(s.ValidatingAdmissionPolicyCache)
+		IsStoreEmpty(s.ValidatingAdmissionPolicyCache) &&
+		IsStoreEmpty(s.MutatingAdmissionPolicyCache) &&
+		IsStoreEmpty(s.MutatingAdmissionPolicyBindingCache)
 
 	// Don't add InstallStrategyConfigMapCache to this list. The install
 	// strategies persist even after deletion and updates.
@@ -136,8 +142,10 @@ type Expectations struct {
 	PrometheusRule                   *controller.UIDTrackingControllerExpectations
 	Secrets                          *controller.UIDTrackingControllerExpectations
 	ConfigMap                        *controller.UIDTrackingControllerExpectations
-	ValidatingAdmissionPolicyBinding *controller.UIDTrackingControllerExpectations
-	ValidatingAdmissionPolicy        *controller.UIDTrackingControllerExpectations
+	ValidatingAdmissionPolicyBinding  *controller.UIDTrackingControllerExpectations
+	ValidatingAdmissionPolicy         *controller.UIDTrackingControllerExpectations
+	MutatingAdmissionPolicy           *controller.UIDTrackingControllerExpectations
+	MutatingAdmissionPolicyBinding    *controller.UIDTrackingControllerExpectations
 }
 
 type Informers struct {
@@ -166,9 +174,11 @@ type Informers struct {
 	PrometheusRule                   cache.SharedIndexInformer
 	Secrets                          cache.SharedIndexInformer
 	ConfigMap                        cache.SharedIndexInformer
-	ValidatingAdmissionPolicyBinding cache.SharedIndexInformer
-	ValidatingAdmissionPolicy        cache.SharedIndexInformer
-	ClusterInstancetype              cache.SharedIndexInformer
+	ValidatingAdmissionPolicyBinding  cache.SharedIndexInformer
+	ValidatingAdmissionPolicy         cache.SharedIndexInformer
+	MutatingAdmissionPolicy           cache.SharedIndexInformer
+	MutatingAdmissionPolicyBinding    cache.SharedIndexInformer
+	ClusterInstancetype               cache.SharedIndexInformer
 	ClusterPreference                cache.SharedIndexInformer
 	Leases                           cache.SharedIndexInformer
 }
@@ -197,6 +207,8 @@ func (e *Expectations) DeleteExpectations(key string) {
 	e.ConfigMap.DeleteExpectations(key)
 	e.ValidatingAdmissionPolicyBinding.DeleteExpectations(key)
 	e.ValidatingAdmissionPolicy.DeleteExpectations(key)
+	e.MutatingAdmissionPolicy.DeleteExpectations(key)
+	e.MutatingAdmissionPolicyBinding.DeleteExpectations(key)
 }
 
 func (e *Expectations) ResetExpectations(key string) {
@@ -223,6 +235,8 @@ func (e *Expectations) ResetExpectations(key string) {
 	e.ConfigMap.SetExpectations(key, 0, 0)
 	e.ValidatingAdmissionPolicyBinding.SetExpectations(key, 0, 0)
 	e.ValidatingAdmissionPolicy.SetExpectations(key, 0, 0)
+	e.MutatingAdmissionPolicy.SetExpectations(key, 0, 0)
+	e.MutatingAdmissionPolicyBinding.SetExpectations(key, 0, 0)
 }
 
 func (e *Expectations) SatisfiedExpectations(key string) bool {
@@ -248,5 +262,7 @@ func (e *Expectations) SatisfiedExpectations(key string) bool {
 		e.Secrets.SatisfiedExpectations(key) &&
 		e.ConfigMap.SatisfiedExpectations(key) &&
 		e.ValidatingAdmissionPolicyBinding.SatisfiedExpectations(key) &&
-		e.ValidatingAdmissionPolicy.SatisfiedExpectations(key)
+		e.ValidatingAdmissionPolicy.SatisfiedExpectations(key) &&
+		e.MutatingAdmissionPolicy.SatisfiedExpectations(key) &&
+		e.MutatingAdmissionPolicyBinding.SatisfiedExpectations(key)
 }
