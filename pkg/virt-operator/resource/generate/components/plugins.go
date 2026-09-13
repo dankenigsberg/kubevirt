@@ -42,7 +42,7 @@ func NewRootLauncherPlugin() *pluginv1alpha1.Plugin {
 							Env: []corev1.EnvVar{
 								{Name: "VIRT_LAUNCHER_LIBVIRT_URI", Value: "qemu+unix:///system"},
 								{Name: "VIRT_LAUNCHER_LOG_DIR", Value: "/var/log/libvirt/qemu/"},
-								{Name: "VIRT_LAUNCHER_PID_DIR", Value: "/run/libvirt/qemu/run"},
+								{Name: "VIRT_LAUNCHER_PID_DIR", Value: "/run/libvirt/qemu"},
 								{Name: "VIRT_LAUNCHER_SWTPM_DIR", Value: "/var/lib/swtpm-localca"},
 								{Name: "VIRT_LAUNCHER_CBT_DIR", Value: "/var/run/kubevirt-private/libvirt/qemu/cbt"},
 								{Name: "VIRT_LAUNCHER_UID", Value: "0"},
