@@ -984,7 +984,7 @@ func (t *TemplateService) newContainerSpecRenderer(vmi *v1.VirtualMachineInstanc
 		WithSharedFilesystems(volumeRenderer.SharedFilesystemPaths()...),
 		WithResourceRequirements(resources),
 		WithPorts(vmi),
-		WithCapabilities(vmi),
+		WithCapabilities(),
 	}
 	computeContainerOpts = append(computeContainerOpts, WithNonRoot(userId))
 	computeContainerOpts = append(computeContainerOpts, WithDropALLCapabilities())

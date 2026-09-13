@@ -96,7 +96,7 @@ func WithNonRoot(userID int64) Option {
 	}
 }
 
-func WithCapabilities(_ *v1.VirtualMachineInstance) Option {
+func WithCapabilities() Option {
 	return func(renderer *ContainerSpecRenderer) {
 		if renderer.capabilities == nil {
 			renderer.capabilities = &k8sv1.Capabilities{
