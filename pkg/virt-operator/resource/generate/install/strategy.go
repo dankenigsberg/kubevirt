@@ -101,6 +101,8 @@ type StrategyInterface interface {
 	Preferences() []*instancetypev1beta1.VirtualMachineClusterPreference
 	ValidatingAdmissionPolicyBindings() []*admissionregistrationv1.ValidatingAdmissionPolicyBinding
 	ValidatingAdmissionPolicies() []*admissionregistrationv1.ValidatingAdmissionPolicy
+	MutatingAdmissionPolicies() []*admissionregistrationv1.MutatingAdmissionPolicy
+	MutatingAdmissionPolicyBindings() []*admissionregistrationv1.MutatingAdmissionPolicyBinding
 	Plugins() []*pluginv1alpha1.Plugin
 }
 
@@ -131,6 +133,8 @@ type Strategy struct {
 	preferences                       []*instancetypev1beta1.VirtualMachineClusterPreference
 	validatingAdmissionPolicyBindings []*admissionregistrationv1.ValidatingAdmissionPolicyBinding
 	validatingAdmissionPolicies       []*admissionregistrationv1.ValidatingAdmissionPolicy
+	mutatingAdmissionPolicies         []*admissionregistrationv1.MutatingAdmissionPolicy
+	mutatingAdmissionPolicyBindings   []*admissionregistrationv1.MutatingAdmissionPolicyBinding
 	plugins                           []*pluginv1alpha1.Plugin
 }
 
@@ -286,6 +290,14 @@ func (ins *Strategy) ValidatingAdmissionPolicyBindings() []*admissionregistratio
 
 func (ins *Strategy) ValidatingAdmissionPolicies() []*admissionregistrationv1.ValidatingAdmissionPolicy {
 	return ins.validatingAdmissionPolicies
+}
+
+func (ins *Strategy) MutatingAdmissionPolicies() []*admissionregistrationv1.MutatingAdmissionPolicy {
+	return ins.mutatingAdmissionPolicies
+}
+
+func (ins *Strategy) MutatingAdmissionPolicyBindings() []*admissionregistrationv1.MutatingAdmissionPolicyBinding {
+	return ins.mutatingAdmissionPolicyBindings
 }
 
 func (ins *Strategy) Plugins() []*pluginv1alpha1.Plugin {
@@ -457,6 +469,12 @@ func dumpInstallStrategyToBytes(strategy *Strategy) []byte {
 		marshalutil.MarshallObject(entry, writer)
 	}
 	for _, entry := range strategy.validatingAdmissionPolicies {
+		marshalutil.MarshallObject(entry, writer)
+	}
+	for _, entry := range strategy.mutatingAdmissionPolicies {
+		marshalutil.MarshallObject(entry, writer)
+	}
+	for _, entry := range strategy.mutatingAdmissionPolicyBindings {
 		marshalutil.MarshallObject(entry, writer)
 	}
 	for _, entry := range strategy.apiServices {
@@ -670,6 +688,8 @@ func GenerateCurrentInstallStrategy(config *operatorutil.KubeVirtDeploymentConfi
 
 	if config.RootEnabled() {
 		strategy.plugins = append(strategy.plugins, components.NewRootLauncherPlugin())
+		strategy.mutatingAdmissionPolicies = append(strategy.mutatingAdmissionPolicies, components.NewRootLauncherMutatingAdmissionPolicy())
+		strategy.mutatingAdmissionPolicyBindings = append(strategy.mutatingAdmissionPolicyBindings, components.NewRootLauncherMutatingAdmissionPolicyBinding())
 	}
 
 	if config.VirtTemplateDeploymentEnabled() {
@@ -827,6 +847,20 @@ func loadInstallStrategyFromBytes(data string) (*Strategy, error) {
 			}
 			validatingAdmissionPolicy.TypeMeta = obj
 			strategy.validatingAdmissionPolicies = append(strategy.validatingAdmissionPolicies, validatingAdmissionPolicy)
+		case "MutatingAdmissionPolicy":
+			mutatingAdmissionPolicy := &admissionregistrationv1.MutatingAdmissionPolicy{}
+			if err := yaml.Unmarshal([]byte(entry), &mutatingAdmissionPolicy); err != nil {
+				return nil, err
+			}
+			mutatingAdmissionPolicy.TypeMeta = obj
+			strategy.mutatingAdmissionPolicies = append(strategy.mutatingAdmissionPolicies, mutatingAdmissionPolicy)
+		case "MutatingAdmissionPolicyBinding":
+			mutatingAdmissionPolicyBinding := &admissionregistrationv1.MutatingAdmissionPolicyBinding{}
+			if err := yaml.Unmarshal([]byte(entry), &mutatingAdmissionPolicyBinding); err != nil {
+				return nil, err
+			}
+			mutatingAdmissionPolicyBinding.TypeMeta = obj
+			strategy.mutatingAdmissionPolicyBindings = append(strategy.mutatingAdmissionPolicyBindings, mutatingAdmissionPolicyBinding)
 		case "APIService":
 			apiService := &apiregv1.APIService{}
 			if err := yaml.Unmarshal([]byte(entry), &apiService); err != nil {

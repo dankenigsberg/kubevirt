@@ -1,6 +1,7 @@
 package components
 
 import (
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -51,6 +52,67 @@ func NewRootLauncherPlugin() *pluginv1alpha1.Plugin {
 					},
 				},
 			},
+		},
+	}
+}
+
+const rootLauncherPolicyName = "kubevirt-root-launcher-runtime-user"
+
+func NewRootLauncherMutatingAdmissionPolicy() *admissionregistrationv1.MutatingAdmissionPolicy {
+	return &admissionregistrationv1.MutatingAdmissionPolicy{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admissionregistration.k8s.io/v1",
+			Kind:       "MutatingAdmissionPolicy",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: rootLauncherPolicyName,
+		},
+		Spec: admissionregistrationv1.MutatingAdmissionPolicySpec{
+			FailurePolicy:    pointer.P(admissionregistrationv1.Fail),
+			ReinvocationPolicy: admissionregistrationv1.NeverReinvocationPolicy,
+			MatchConstraints: &admissionregistrationv1.MatchResources{
+				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{
+					{
+						RuleWithOperations: admissionregistrationv1.RuleWithOperations{
+							Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create},
+							Rule: admissionregistrationv1.Rule{
+								APIGroups:   []string{"kubevirt.io"},
+								APIVersions: []string{"v1"},
+								Resources:   []string{"virtualmachineinstances"},
+							},
+						},
+					},
+				},
+			},
+			MatchConditions: []admissionregistrationv1.MatchCondition{
+				{
+					Name:       "has-nonroot-false-annotation",
+					Expression: `has(object.metadata.annotations) && "kubevirt.io/nonroot" in object.metadata.annotations && object.metadata.annotations["kubevirt.io/nonroot"] == "false"`,
+				},
+			},
+			Mutations: []admissionregistrationv1.Mutation{
+				{
+					PatchType: admissionregistrationv1.PatchTypeJSONPatch,
+					JSONPatch: &admissionregistrationv1.JSONPatch{
+						Expression: `[JSONPatch{op: "add", path: "/status/runtimeUser", value: 0}]`,
+					},
+				},
+			},
+		},
+	}
+}
+
+func NewRootLauncherMutatingAdmissionPolicyBinding() *admissionregistrationv1.MutatingAdmissionPolicyBinding {
+	return &admissionregistrationv1.MutatingAdmissionPolicyBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admissionregistration.k8s.io/v1",
+			Kind:       "MutatingAdmissionPolicyBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: rootLauncherPolicyName,
+		},
+		Spec: admissionregistrationv1.MutatingAdmissionPolicyBindingSpec{
+			PolicyName: rootLauncherPolicyName,
 		},
 	}
 }

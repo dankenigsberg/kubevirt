@@ -31,6 +31,7 @@ import (
 	apiregv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
 	instancetypev1beta1 "kubevirt.io/api/instancetype/v1beta1"
+	pluginv1alpha1 "kubevirt.io/api/plugin/v1alpha1"
 )
 
 type FakeStrategy struct {
@@ -143,5 +144,17 @@ func (ins *FakeStrategy) ValidatingAdmissionPolicyBindings() []*admissionregistr
 }
 
 func (ins *FakeStrategy) ValidatingAdmissionPolicies() []*admissionregistrationv1.ValidatingAdmissionPolicy {
+	return nil
+}
+
+func (ins *FakeStrategy) MutatingAdmissionPolicies() []*admissionregistrationv1.MutatingAdmissionPolicy {
+	return nil
+}
+
+func (ins *FakeStrategy) MutatingAdmissionPolicyBindings() []*admissionregistrationv1.MutatingAdmissionPolicyBinding {
+	return nil
+}
+
+func (ins *FakeStrategy) Plugins() []*pluginv1alpha1.Plugin {
 	return nil
 }
