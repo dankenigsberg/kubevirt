@@ -525,7 +525,7 @@ func main() {
 	standalone.HandleStandaloneMode(domainManager)
 	domain := waitForDomainUUID(*qemuTimeout, events, signalStopChan, domainManager)
 	if domain != nil {
-		pidDir := util.LauncherEnv("VIRT_LAUNCHER_PID_DIR", "/run/libvirt/qemu/run")
+		pidDir := util.LauncherEnv(util.EnvVirtLauncherPidDir, "/run/libvirt/qemu/run")
 		mon := virtlauncher.NewProcessMonitor(domainName,
 			pidDir,
 			*gracePeriodSeconds,

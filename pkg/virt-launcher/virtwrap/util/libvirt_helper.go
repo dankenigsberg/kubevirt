@@ -97,9 +97,10 @@ var PausedReasonTranslationMap = map[libvirt.DomainPausedReason]api.StateChangeR
 var getHookManager = hooks.GetManager
 
 const (
-	EnvVirtLauncherUID       = "VIRT_LAUNCHER_UID"
-	EnvVirtLauncherLogDir    = "VIRT_LAUNCHER_LOG_DIR"
+	EnvVirtLauncherUID        = "VIRT_LAUNCHER_UID"
+	EnvVirtLauncherLogDir     = "VIRT_LAUNCHER_LOG_DIR"
 	EnvVirtLauncherLibvirtURI = "VIRT_LAUNCHER_LIBVIRT_URI"
+	EnvVirtLauncherPidDir     = "VIRT_LAUNCHER_PID_DIR"
 )
 
 func LauncherEnv(name, defaultVal string) string {
