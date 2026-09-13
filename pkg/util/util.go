@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -12,6 +13,18 @@ import (
 	generatedscheme "kubevirt.io/client-go/kubevirt/scheme"
 	"kubevirt.io/client-go/log"
 )
+
+const (
+	EnvVirtLauncherSwtpmDir = "VIRT_LAUNCHER_SWTPM_DIR"
+	EnvVirtLauncherCBTDir   = "VIRT_LAUNCHER_CBT_DIR"
+)
+
+func EnvOrDefault(name, defaultVal string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return defaultVal
+}
 
 const (
 	ExtensionAPIServerAuthenticationConfigMap = "extension-apiserver-authentication"

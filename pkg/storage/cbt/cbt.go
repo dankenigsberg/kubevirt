@@ -319,7 +319,7 @@ func IsCBTEligibleVolume(volume *v1.Volume) bool {
 }
 
 func PathForCBT(vmi *v1.VirtualMachineInstance) string {
-	return filepath.Join(util.VirtPrivateDir, "libvirt", "qemu", "cbt")
+	return util.EnvOrDefault(util.EnvVirtLauncherCBTDir, filepath.Join(util.VirtPrivateDir, "libvirt", "qemu", "cbt"))
 }
 
 func GetQCOW2OverlayPath(vmi *v1.VirtualMachineInstance, volumeName string) string {

@@ -868,5 +868,5 @@ func shouldAddLauncherBinaryVolume(vmi *v1.VirtualMachineInstance, imageIDs map[
 }
 
 func pathForSwtpmLocalca() string {
-	return filepath.Join(util.VirtPrivateDir, "var", "lib", "swtpm-localca")
+	return util.EnvOrDefault(util.EnvVirtLauncherSwtpmDir, filepath.Join(util.VirtPrivateDir, "var", "lib", "swtpm-localca"))
 }
