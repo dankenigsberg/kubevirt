@@ -349,12 +349,6 @@ func CreateEphemeralImages(
 				return fmt.Errorf("no disk info provided for volume %s", volume.Name)
 			}
 			backingFile := GetDiskTargetPathFromLauncherView(i)
-			exists, err := diskutils.FileExists(backingFile)
-			if err != nil {
-				return err
-			} else if !exists {
-				return fmt.Errorf("no supported file disk found for volume found in: %s", backingFile)
-			}
 			if err := diskCreator.CreateBackedImageForVolume(volume, backingFile, info.Format); err != nil {
 				return err
 			}
