@@ -17,17 +17,14 @@
  *
  */
 
-package cloudinit
+package cloudinit_test
 
 import (
 	"testing"
 
 	"kubevirt.io/client-go/testutils"
-
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 )
 
 func TestCloudInit(t *testing.T) {
-	ephemeraldiskutils.MockDefaultOwnershipManager()
 	testutils.KubeVirtTestSuiteSetup(t)
 }

@@ -101,14 +101,7 @@ var (
 )
 
 var _ = BeforeSuite(func() {
-	tmpDir, err := os.MkdirTemp("", "cloudinittest")
-	Expect(err).ToNot(HaveOccurred())
-	DeferCleanup(os.RemoveAll, tmpDir)
-
-	Expect(cloudinit.SetLocalDirectory(tmpDir)).To(Succeed())
-
 	ephemeraldiskutils.MockDefaultOwnershipManager()
-	cloudinit.SetIsoCreationFunction(isoCreationFunc)
 })
 
 var _ = Describe("Manager", func() {
@@ -542,41 +535,6 @@ var _ = Describe("Manager", func() {
 
 			mockLibvirt.DomainEXPECT().GetState().Return(libvirt.DOMAIN_SHUTDOWN, 1, nil)
 			mockLibvirt.DomainEXPECT().CreateWithFlags(libvirt.DOMAIN_START_PAUSED).Return(nil)
-			manager, _ := newLibvirtDomainManagerDefault()
-			newspec, err := manager.SyncVMI(vmi, true, &cmdv1.VirtualMachineOptions{VirtualMachineSMBios: &cmdv1.SMBios{}})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(newspec).ToNot(BeNil())
-		})
-
-		It("should define and start a new VirtualMachineInstance with userData", func() {
-			vmi := newVMI(testNamespace, testVmName)
-			mockLibvirt.ConnectionEXPECT().LookupDomainByName(testDomainName).Return(nil, libvirt.Error{Code: libvirt.ERR_NO_DOMAIN})
-
-			userData := "fake\nuser\ndata\n"
-			networkData := ""
-			addCloudInitDisk(vmi, userData, networkData)
-
-			setDomainExpectations(vmi)
-
-			mockLibvirt.DomainEXPECT().GetState().Return(libvirt.DOMAIN_SHUTDOWN, 1, nil)
-			mockLibvirt.DomainEXPECT().CreateWithFlags(libvirt.DOMAIN_NONE).Return(nil)
-			manager, _ := newLibvirtDomainManagerDefault()
-			newspec, err := manager.SyncVMI(vmi, true, &cmdv1.VirtualMachineOptions{VirtualMachineSMBios: &cmdv1.SMBios{}})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(newspec).ToNot(BeNil())
-		})
-
-		It("should define and start a new VirtualMachineInstance with userData and networkData", func() {
-			vmi := newVMI(testNamespace, testVmName)
-			mockLibvirt.ConnectionEXPECT().LookupDomainByName(testDomainName).Return(nil, libvirt.Error{Code: libvirt.ERR_NO_DOMAIN})
-			userData := "fake\nuser\ndata\n"
-			networkData := "FakeNetwork"
-			addCloudInitDisk(vmi, userData, networkData)
-
-			setDomainExpectations(vmi)
-
-			mockLibvirt.DomainEXPECT().GetState().Return(libvirt.DOMAIN_SHUTDOWN, 1, nil)
-			mockLibvirt.DomainEXPECT().CreateWithFlags(libvirt.DOMAIN_NONE).Return(nil)
 			manager, _ := newLibvirtDomainManagerDefault()
 			newspec, err := manager.SyncVMI(vmi, true, &cmdv1.VirtualMachineOptions{VirtualMachineSMBios: &cmdv1.SMBios{}})
 			Expect(err).ToNot(HaveOccurred())
@@ -3334,52 +3292,6 @@ var _ = Describe("Manager", func() {
 		Expect(virtualMachineInstanceGuestAgentInfo).ToNot(BeEmpty())
 	})
 
-	It("executes generateCloudInitEmptyISO and succeeds", func() {
-		agentStore := agentpoller.NewAsyncAgentStore()
-		agentStore.Store(agentpoller.GetFilesystem, []api.Filesystem{
-			{
-				Name:       "test",
-				Mountpoint: "/mnt/whatever",
-				Type:       "fs",
-				UsedBytes:  0,
-				TotalBytes: 0,
-				Disk: []api.FSDisk{
-					{
-						BusType: "scsi",
-						Serial:  "testserial-1234",
-					},
-				},
-			},
-		})
-
-		manager, _ := NewLibvirtDomainManager(mockLibvirt.VirtConnection, testVirtShareDir, testEphemeralDiskDir, &agentStore, virtconfig.DefaultARCHOVMFPath, ephemeralDiskCreatorMock, metadataCache, nil, virtconfig.DefaultDiskVerificationMemoryLimitBytes, fakeCpuSetGetter, false, nil, v1.KvmHypervisorName, "", false, false, false, nil)
-
-		// we need the non-typecast object to make the function we want to test available
-		libvirtmanager := manager.(*LibvirtDomainManager)
-
-		vmi := newVMI(testNamespace, testVmName)
-		vmi.Status.VolumeStatus = make([]v1.VolumeStatus, 1)
-		vmi.Status.VolumeStatus[0] = v1.VolumeStatus{
-			Name: "test1",
-			Size: 42,
-		}
-
-		userData := "fake\nuser\ndata\n"
-		networkData := "FakeNetwork"
-		addCloudInitDisk(vmi, userData, networkData)
-		libvirtmanager.cloudInitDataStore = &cloudinit.CloudInitData{
-			DataSource: cloudinit.DataSourceNoCloud,
-			VolumeName: "test1",
-		}
-
-		Expect(libvirtmanager.generateCloudInitEmptyISO(vmi, nil)).To(Succeed())
-
-		isoPath := cloudinit.GetIsoFilePath(libvirtmanager.cloudInitDataStore.DataSource, vmi.Name, vmi.Namespace)
-		stats, err := os.Stat(isoPath)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(stats.Size()).To(Equal(int64(42)))
-	})
-
 	It("executes generateCloudInitEmptyISO and fails", func() {
 		agentStore := agentpoller.NewAsyncAgentStore()
 		agentStore.Store(agentpoller.GetFilesystem, []api.Filesystem{
@@ -5103,11 +5015,6 @@ func addCloudInitDisk(vmi *v1.VirtualMachineInstance, userData string, networkDa
 			},
 		},
 	})
-}
-
-func isoCreationFunc(isoOutFile, volumeID string, inDir string) error {
-	_, err := os.Create(isoOutFile)
-	return err
 }
 
 func getFsImagePath(name string) string {

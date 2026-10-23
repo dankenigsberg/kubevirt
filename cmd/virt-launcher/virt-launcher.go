@@ -39,7 +39,6 @@ import (
 	"kubevirt.io/client-go/log"
 
 	virtwait "kubevirt.io/kubevirt/pkg/apimachinery/wait"
-	cloudinit "kubevirt.io/kubevirt/pkg/cloud-init"
 	"kubevirt.io/kubevirt/pkg/config"
 	"kubevirt.io/kubevirt/pkg/downwardmetrics"
 	ephemeraldisk "kubevirt.io/kubevirt/pkg/ephemeral-disk"
@@ -178,11 +177,6 @@ func initializeDirs(ephemeralDiskDir string,
 	defer syscall.Umask(mask)
 
 	err := virtlauncher.InitializePrivateDirectories(filepath.Join("/var/run/kubevirt-private", uid))
-	if err != nil {
-		panic(err)
-	}
-
-	err = cloudinit.SetLocalDirectory(filepath.Join(ephemeralDiskDir, "cloud-init-data"))
 	if err != nil {
 		panic(err)
 	}
