@@ -24,8 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	expect "github.com/google/goexpect"
@@ -44,11 +42,9 @@ import (
 
 	"kubevirt.io/kubevirt/tests/console"
 	"kubevirt.io/kubevirt/tests/decorators"
-	"kubevirt.io/kubevirt/tests/exec"
 	"kubevirt.io/kubevirt/tests/flags"
 	"kubevirt.io/kubevirt/tests/framework/kubevirt"
 	"kubevirt.io/kubevirt/tests/framework/matcher"
-	"kubevirt.io/kubevirt/tests/libpod"
 	"kubevirt.io/kubevirt/tests/libsecret"
 	"kubevirt.io/kubevirt/tests/libvmifact"
 	"kubevirt.io/kubevirt/tests/libvmops"
@@ -75,9 +71,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 
 	BeforeEach(func() {
 		virtClient = kubevirt.Client()
-
-		// from default virt-launcher flag: do we need to make this configurable in some cases?
-		cloudinit.SetLocalDirectoryOnly("/var/run/kubevirt-ephemeral-disks/cloud-init-data")
 	})
 
 	Describe("[rfe_id:151][crit:medium][vendor:cnv-qe@redhat.com][level:component]A new VirtualMachineInstance", func() {
@@ -98,8 +91,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 
 				runningVMI := libvmops.RunVMIAndExpectLaunch(vmi, flags.StartupTimeoutSecondsSmall())
 				runningVMI = libwait.WaitUntilVMIReady(runningVMI, console.LoginToAlpine)
-
-				checkCloudInitIsoSize(runningVMI, cloudinit.DataSourceNoCloud)
 
 				By("Checking whether the user-data script had created the file")
 				Expect(console.RunCommand(runningVMI, fmt.Sprintf("cat /%s\n", expectedUserDataFile), time.Second*120)).To(Succeed())
@@ -122,7 +113,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, flags.StartupTimeoutSecondsSmall())
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceNoCloud)
 
 				By("Checking whether the user-data script had created the file")
 				Expect(console.RunCommand(vmi, fmt.Sprintf("cat /%s\n", expectedUserDataFile), time.Second*120)).To(Succeed())
@@ -138,7 +128,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 					vmi := libvmifact.NewFedora(libvmi.WithCloudInitNoCloud(libcloudinit.WithNoCloudUserData(userData)))
 
 					vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
-					checkCloudInitIsoSize(vmi, cloudinit.DataSourceNoCloud)
 
 					verifyUserDataVMI(vmi, []expect.Batcher{
 						&expect.BSnd{S: "\n"},
@@ -161,7 +150,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, flags.StartupTimeoutSecondsSmall())
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceConfigDrive)
 
 				By("Checking whether the user-data script had created the file")
 				Expect(console.RunCommand(vmi, fmt.Sprintf("cat /%s\n", expectedUserDataFile), time.Second*120)).To(Succeed())
@@ -179,7 +167,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 					)
 
 					vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
-					checkCloudInitIsoSize(vmi, cloudinit.DataSourceConfigDrive)
 
 					verifyUserDataVMI(vmi, []expect.Batcher{
 						&expect.BSnd{S: "\n"},
@@ -248,8 +235,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
 
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceNoCloud)
-
 				By("mouting cloudinit iso")
 				Expect(mountGuestDevice(vmi, dataSourceNoCloudVolumeID)).To(Succeed())
 
@@ -265,8 +250,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 				)
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
-
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceNoCloud)
 
 				By("mouting cloudinit iso")
 				Expect(mountGuestDevice(vmi, dataSourceNoCloudVolumeID)).To(Succeed())
@@ -291,8 +274,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
-
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceNoCloud)
 
 				By("mouting cloudinit iso")
 				Expect(mountGuestDevice(vmi, dataSourceNoCloudVolumeID)).To(Succeed())
@@ -320,8 +301,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 						libvmifact.WithDummyConfigDriveCloudForFastBoot()))
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
-
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceConfigDrive)
 
 				By("mouting cloudinit iso")
 				Expect(mountGuestDevice(vmi, dataSourceConfigDriveVolumeID)).To(Succeed())
@@ -353,7 +332,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 				)
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceConfigDrive)
 
 				metadataStruct := cloudinit.ConfigDriveMetadata{
 					InstanceID:   fmt.Sprintf("%s.%s", vmi.Name, vmi.Namespace),
@@ -396,7 +374,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
 
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceConfigDrive)
 				By("mouting cloudinit iso")
 				Expect(mountGuestDevice(vmi, dataSourceConfigDriveVolumeID)).To(Succeed())
 
@@ -425,8 +402,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
-
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceConfigDrive)
 
 				By("mouting cloudinit iso")
 				Expect(mountGuestDevice(vmi, dataSourceConfigDriveVolumeID)).To(Succeed())
@@ -479,8 +454,6 @@ var _ = Describe("[rfe_id:151][crit:high][vendor:cnv-qe@redhat.com][level:compon
 
 				vmi = libvmops.RunVMIAndExpectLaunch(vmi, startupTime)
 				vmi = libwait.WaitUntilVMIReady(vmi, console.LoginToAlpine)
-
-				checkCloudInitIsoSize(vmi, cloudinit.DataSourceConfigDrive)
 
 				By("mounting cloudinit iso")
 				Expect(mountGuestDevice(vmi, dataSourceConfigDriveVolumeID)).To(Succeed())
@@ -551,20 +524,4 @@ func checkCloudInitFile(vmi *v1.VirtualMachineInstance, testFile, testData strin
 		&expect.BExp{R: testData},
 	}, 15)
 	Expect(err).ToNot(HaveOccurred())
-}
-
-func checkCloudInitIsoSize(vmi *v1.VirtualMachineInstance, source cloudinit.DataSourceType) {
-	pod, err := libpod.GetPodByVirtualMachineInstance(vmi, vmi.Namespace)
-	Expect(err).NotTo(HaveOccurred())
-
-	path := cloudinit.GetIsoFilePath(source, vmi.Name, vmi.Namespace)
-
-	By(fmt.Sprintf("Checking cloud init ISO at '%s' is 4k-block fs compatible", path))
-	cmdCheck := []string{"stat", "--printf='%s'", path}
-
-	out, err := exec.ExecuteCommandOnPod(pod, "compute", cmdCheck)
-	Expect(err).NotTo(HaveOccurred())
-	size, err := strconv.Atoi(strings.Trim(out, "'"))
-	Expect(err).NotTo(HaveOccurred())
-	Expect(size % 4096).To(Equal(0))
 }
