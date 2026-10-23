@@ -494,7 +494,7 @@ func PrepareLocalPath(vmiName string, namespace string) error {
 	return util.MkdirAllWithNosec(getDomainBasePath(vmiName, namespace))
 }
 
-func GenerateEmptyIso(vmiName string, namespace string, data *CloudInitData, size int64) error {
+func GenerateIsoPlaceholder(vmiName string, namespace string, data *CloudInitData, size int64) error {
 	precond.MustNotBeEmpty(vmiName)
 	precond.MustNotBeNil(data)
 
