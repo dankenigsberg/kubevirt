@@ -36,6 +36,8 @@ RUN dnf install -y dnf-plugins-core && \
         rsync-daemon \
         rsync \
         qemu-img \
+        xorriso \
+        shadow-utils \
         protobuf-compiler \
         python3 \
         python3-devel \
@@ -49,6 +51,9 @@ RUN dnf install -y dnf-plugins-core && \
         skopeo \
         libnbd-devel && \
     dnf clean -y all
+
+# Cloud-init ISO integration tests verify ownership by the qemu account.
+RUN useradd --system --no-create-home --shell /sbin/nologin qemu
 
 # Avoids the need to install sssd-client by disabling lookups
 COPY nsswitch.conf /etc/nsswitch.conf
