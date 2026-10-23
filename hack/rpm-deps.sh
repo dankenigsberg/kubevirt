@@ -202,7 +202,6 @@ handlerbase_extra="
   selinux-policy-targeted
   tar
   util-linux
-  xorriso
 "
 
 libguestfstools_main="
