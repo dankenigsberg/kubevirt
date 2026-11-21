@@ -34,7 +34,6 @@ import (
 	"kubevirt.io/client-go/log"
 
 	"kubevirt.io/kubevirt/pkg/certificates"
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/testutils"
 )
@@ -50,7 +49,6 @@ var _ = Describe("MigrationProxy", func() {
 		os.MkdirAll(tmpDir, 0755)
 		store, err := certificates.GenerateSelfSignedCert(tmpDir, "test", "test")
 
-		ephemeraldiskutils.MockDefaultOwnershipManager()
 		tlsConfig = &tls.Config{
 			InsecureSkipVerify: true,
 			MinVersion:         tls.VersionTLS12,

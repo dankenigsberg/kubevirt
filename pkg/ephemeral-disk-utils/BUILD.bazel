@@ -2,16 +2,9 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "generated_mock_utils.go",
-        "utils.go",
-    ],
+    srcs = ["utils.go"],
     importpath = "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils",
     visibility = ["//visibility:public"],
-    deps = [
-        "//pkg/safepath:go_default_library",
-        "//vendor/go.uber.org/mock/gomock:go_default_library",
-    ],
 )
 
 go_test(

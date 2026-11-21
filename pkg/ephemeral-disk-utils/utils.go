@@ -19,88 +19,10 @@
 
 package ephemeraldiskutils
 
-//go:generate mockgen -source $GOFILE -package=$GOPACKAGE -destination=generated_mock_$GOFILE
-
 import (
 	"errors"
-	"fmt"
 	"os"
-	"os/user"
-	"strconv"
-	"syscall"
-
-	"kubevirt.io/kubevirt/pkg/safepath"
 )
-
-// TODO this should be part of structs, instead of a global
-var DefaultOwnershipManager OwnershipManagerInterface = &OwnershipManager{user: "qemu"}
-
-// For testing
-func MockDefaultOwnershipManager() {
-	DefaultOwnershipManager = &nonOpManager{}
-}
-
-type nonOpManager struct {
-}
-
-func (no *nonOpManager) SetFileOwnership(_ *safepath.Path) error {
-	return nil
-}
-
-func MockDefaultOwnershipManagerWithFailure() {
-	DefaultOwnershipManager = &failureManager{}
-}
-
-type failureManager struct {
-}
-
-func (no *failureManager) SetFileOwnership(_ *safepath.Path) error {
-	panic("unexpected call to SetFileOwnership")
-}
-
-type OwnershipManager struct {
-	user string
-}
-
-func (om *OwnershipManager) SetFileOwnership(file *safepath.Path) error {
-	fd, err := safepath.OpenAtNoFollow(file)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-	return om.setFileOwnership(fd.SafePath())
-}
-
-func (om *OwnershipManager) setFileOwnership(file string) error {
-	owner, err := user.Lookup(om.user)
-	if err != nil {
-		return fmt.Errorf("failed to look up user %s: %v", om.user, err)
-	}
-
-	uid, err := strconv.Atoi(owner.Uid)
-	if err != nil {
-		return fmt.Errorf("failed to convert UID %s of user %s: %v", owner.Uid, om.user, err)
-	}
-
-	gid, err := strconv.Atoi(owner.Gid)
-	if err != nil {
-		return fmt.Errorf("failed to convert GID %s of user %s: %v", owner.Gid, om.user, err)
-	}
-	fileInfo, err := os.Stat(file)
-	if err != nil {
-		return err
-	}
-
-	if stat, ok := fileInfo.Sys().(*syscall.Stat_t); ok {
-		if uid == int(stat.Uid) && gid == int(stat.Gid) {
-			return nil
-		}
-	} else {
-		return fmt.Errorf("failed to convert stat info")
-	}
-
-	return os.Chown(file, uid, gid)
-}
 
 func FileExists(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -112,8 +34,4 @@ func FileExists(path string) (bool, error) {
 		err = nil
 	}
 	return exists, err
-}
-
-type OwnershipManagerInterface interface {
-	SetFileOwnership(file *safepath.Path) error
 }

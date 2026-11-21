@@ -22,7 +22,6 @@ package cache_test
 import (
 	"os"
 
-	dutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	netcache "kubevirt.io/kubevirt/pkg/network/cache"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -37,8 +36,6 @@ var _ = Describe("Pod Interface", func() {
 	var cacheCreator tempCacheCreator
 	var podIfaceCache netcache.PodInterfaceCache
 	var cacheData netcache.PodIfaceCacheData
-
-	BeforeEach(dutils.MockDefaultOwnershipManager)
 
 	BeforeEach(func() {
 		podCache := netcache.NewPodInterfaceCache(&cacheCreator, UID)

@@ -35,7 +35,6 @@ import (
 	"kubevirt.io/kubevirt/pkg/safepath"
 	virt_chroot "kubevirt.io/kubevirt/pkg/virt-handler/virt-chroot"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	hotplugdisk "kubevirt.io/kubevirt/pkg/storage/hotplug-disk"
 	storagetypes "kubevirt.io/kubevirt/pkg/storage/types"
 	"kubevirt.io/kubevirt/pkg/virt-handler/cgroup"
@@ -49,6 +48,7 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/log"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 //go:generate mockgen -source $GOFILE -package=$GOPACKAGE -destination=generated_mock_$GOFILE
@@ -156,7 +156,6 @@ type volumeMounter struct {
 	mountRecordsLock   sync.Mutex
 	skipSafetyCheck    bool
 	hotplugDiskManager hotplugdisk.HotplugDiskManagerInterface
-	ownershipManager   diskutils.OwnershipManagerInterface
 	kubeletPodsDir     string
 	host               string
 }
@@ -199,7 +198,6 @@ func NewVolumeMounter(checkpointManager checkpoint.CheckpointManager, kubeletPod
 		mountRecords:       make(map[types.UID]*vmiMountTargetRecord),
 		checkpointManager:  checkpointManager,
 		hotplugDiskManager: hotplugdisk.NewHotplugDiskManager(kubeletPodsDir),
-		ownershipManager:   diskutils.DefaultOwnershipManager,
 		kubeletPodsDir:     kubeletPodsDir,
 		host:               host,
 	}
@@ -480,7 +478,7 @@ func (m *volumeMounter) mountBlockHotplugVolume(
 		return err
 	}
 
-	return m.ownershipManager.SetFileOwnership(devicePath)
+	return rootful.ChownToQemu(devicePath)
 }
 
 func (m *volumeMounter) getSourceMajorMinor(sourceUID types.UID, volumeName string) (uint64, os.FileMode, error) {
@@ -587,7 +585,7 @@ func (m *volumeMounter) mountFileSystemHotplugVolume(vmi *v1.VirtualMachineInsta
 		log.Log.Object(vmi).V(1).Infof("successfully mounted hotplug volume %s", volume)
 	}
 
-	return m.ownershipManager.SetFileOwnership(target)
+	return rootful.ChownToQemu(target)
 }
 
 func (m *volumeMounter) findVirtlauncherUID(vmi *v1.VirtualMachineInstance) (uid types.UID) {

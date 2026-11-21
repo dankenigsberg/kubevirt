@@ -92,7 +92,7 @@ func createQCOW(file string, size string) error {
 
 // NewEmptyDiskCreator uses the virt-launcher empty disk directory.
 func NewEmptyDiskCreator() *emptyDiskCreator {
-	return NewEmptyDiskCreatorWith(emptyDiskBaseDir, createQCOW, rootful.ChownToQemu)
+	return NewEmptyDiskCreatorWith(emptyDiskBaseDir, createQCOW, rootful.ChownToQemu[string])
 }
 
 // NewEmptyDiskCreatorWith uses a custom directory, disk creation function, and ownership function.

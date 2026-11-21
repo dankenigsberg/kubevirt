@@ -29,10 +29,20 @@ import (
 
 // ChownToQemu sets the QEMU file owner and group when running as root.
 // It rejects symlinks in the path and changes ownership on the opened file.
-func ChownToQemu(path string) error {
+func ChownToQemu[P string | *safepath.Path](path P) error {
 	if os.Geteuid() != 0 {
 		return nil
 	}
+	switch path := any(path).(type) {
+	case *safepath.Path:
+		return safepath.ChownAtNoFollow(path, util.NonRootUID, util.NonRootUID)
+	case string:
+		return chownPathToQemu(path)
+	}
+	return nil
+}
+
+func chownPathToQemu(path string) error {
 	if path == "" {
 		return &os.PathError{Op: "chown", Path: path, Err: os.ErrNotExist}
 	}

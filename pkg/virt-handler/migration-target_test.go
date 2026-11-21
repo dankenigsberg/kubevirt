@@ -53,7 +53,6 @@ import (
 	"kubevirt.io/kubevirt/pkg/checkpoint"
 	virtcontroller "kubevirt.io/kubevirt/pkg/controller"
 	controllertesting "kubevirt.io/kubevirt/pkg/controller/testing"
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/hypervisor"
 	"kubevirt.io/kubevirt/pkg/pointer"
 	"kubevirt.io/kubevirt/pkg/safepath"
@@ -152,7 +151,6 @@ var _ = Describe("VirtualMachineInstance migration target", func() {
 
 	BeforeEach(func() {
 		networkBindingPluginMemoryCalculator = &stubMemoryOverheadCalculator{}
-		diskutils.MockDefaultOwnershipManager()
 
 		wg = &sync.WaitGroup{}
 		stop = make(chan struct{})

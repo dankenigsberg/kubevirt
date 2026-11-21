@@ -28,7 +28,6 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/hypervisor"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/testutils"
@@ -39,7 +38,6 @@ var _ = Describe("claimDeviceOwnership", func() {
 	var path string
 
 	BeforeEach(func() {
-		diskutils.MockDefaultOwnershipManager()
 
 		config, _, _ := testutils.NewFakeClusterConfigUsingKVConfig(&v1.KubeVirtConfiguration{})
 		controller = &BaseController{

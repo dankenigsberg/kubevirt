@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,7 +32,6 @@ import (
 
 	"kubevirt.io/kubevirt/pkg/libvmi"
 
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/testutils"
 )
@@ -180,12 +180,7 @@ var _ = Describe("Creator", func() {
 	})
 
 	Context("with an existing image", func() {
-		AfterEach(func() {
-			ephemeraldiskutils.MockDefaultOwnershipManager()
-		})
-
 		It("should not re-create or chown it", func() {
-			ephemeraldiskutils.MockDefaultOwnershipManagerWithFailure()
 			existing := image("volume1", size64Mi)
 			dir, err := safepath.JoinAndResolveWithRelativeRoot(existing.Dir)
 			Expect(err).NotTo(HaveOccurred())
@@ -200,6 +195,7 @@ var _ = Describe("Creator", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(after.ModTime()).To(Equal(before.ModTime()))
 			Expect(after.Size()).To(Equal(size64Mi))
+			Expect(after.Sys().(*syscall.Stat_t).Ctim).To(Equal(before.Sys().(*syscall.Stat_t).Ctim))
 		})
 	})
 })

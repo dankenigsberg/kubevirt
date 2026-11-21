@@ -35,8 +35,8 @@ import (
 
 	"kubevirt.io/client-go/log"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/safepath"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 )
 
@@ -74,7 +74,7 @@ func InjectNotify(pod isolation.IsolationResult, virtShareDir string,
 			return nil, err
 		}
 
-		err = diskutils.DefaultOwnershipManager.SetFileOwnership(socketPath)
+		err = rootful.ChownToQemu(socketPath)
 		if err != nil {
 			listener.Close()
 			return nil, fmt.Errorf("unable to change ownership for domain notify: %w", err)

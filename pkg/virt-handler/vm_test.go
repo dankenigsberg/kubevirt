@@ -56,7 +56,6 @@ import (
 	"kubevirt.io/kubevirt/pkg/checkpoint"
 	virtcontroller "kubevirt.io/kubevirt/pkg/controller"
 	controllertesting "kubevirt.io/kubevirt/pkg/controller/testing"
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	cmdv1 "kubevirt.io/kubevirt/pkg/handler-launcher-com/cmd/v1"
 	"kubevirt.io/kubevirt/pkg/hypervisor"
 	"kubevirt.io/kubevirt/pkg/libvmi"
@@ -114,7 +113,6 @@ var _ = Describe("VirtualMachineInstance", func() {
 	const interfaceName = "interface_name"
 
 	BeforeEach(func() {
-		diskutils.MockDefaultOwnershipManager()
 
 		podsDir, err := os.MkdirTemp("", "")
 		Expect(err).ToNot(HaveOccurred())

@@ -39,7 +39,6 @@ go_test(
     race = "on",
     deps = [
         ":go_default_library",
-        "//pkg/ephemeral-disk-utils:go_default_library",
         "//pkg/network/cache:go_default_library",
         "//pkg/network/driver/nmstate:go_default_library",
         "//pkg/network/driver/procsys:go_default_library",

@@ -25,8 +25,6 @@ import (
 
 	network "kubevirt.io/kubevirt/pkg/network/setup"
 
-	dutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
-
 	"kubevirt.io/kubevirt/pkg/network/cache"
 )
 
@@ -42,7 +40,6 @@ var _ = Describe("config state cache", func() {
 	)
 
 	BeforeEach(func() {
-		dutils.MockDefaultOwnershipManager()
 		volatilePodIfaceState = map[string]cache.PodIfaceState{}
 		configStateCache = network.NewConfigStateCacheWithPodIfaceStateData(uid, &baseCacheCreator, volatilePodIfaceState)
 	})

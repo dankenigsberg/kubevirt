@@ -33,9 +33,9 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/log"
 
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/util"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 const (
@@ -98,7 +98,7 @@ func (c *Creator) createIfMissing(vmi *v1.VirtualMachineInstance, img Image) err
 	if err != nil {
 		return fmt.Errorf("failed to create disk image %s in %s: %w", img.Name, diskDir, err)
 	}
-	if err := ephemeraldiskutils.DefaultOwnershipManager.SetFileOwnership(diskPath); err != nil {
+	if err := rootful.ChownToQemu(diskPath); err != nil {
 		return fmt.Errorf("failed to set ownership of disk image %s in %s: %w", img.Name, diskDir, err)
 	}
 	if size < img.Size {

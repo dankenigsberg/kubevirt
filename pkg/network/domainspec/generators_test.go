@@ -32,7 +32,6 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
-	dutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	netdriver "kubevirt.io/kubevirt/pkg/network/driver"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 )
@@ -45,7 +44,6 @@ var _ = Describe("Pod Network", func() {
 	const mtu = "1410"
 
 	BeforeEach(func() {
-		dutils.MockDefaultOwnershipManager()
 		var err error
 		tmpDir, err = os.MkdirTemp("/tmp", "interface-cache")
 		Expect(err).ToNot(HaveOccurred())

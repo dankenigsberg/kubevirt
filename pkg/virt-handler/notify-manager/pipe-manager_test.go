@@ -41,9 +41,9 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/api"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/testutils"
+	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 	notifyserver "kubevirt.io/kubevirt/pkg/virt-handler/notify-server"
 	notifyclient "kubevirt.io/kubevirt/pkg/virt-launcher/notify-client"
@@ -149,32 +149,21 @@ var _ = Describe("startDomainNotifyPipe", func() {
 
 	Context("socket ownership", func() {
 
-		// mockOwnership swaps in a mock ownership manager for the duration of
-		// the spec and returns it.
-		mockOwnership := func() *diskutils.MockOwnershipManagerInterface {
-			original := diskutils.DefaultOwnershipManager
-			DeferCleanup(func() {
-				diskutils.DefaultOwnershipManager = original
-			})
-			manager := diskutils.NewMockOwnershipManagerInterface(gomock.NewController(GinkgoT()))
-			diskutils.DefaultOwnershipManager = manager
-			return manager
-		}
-
-		DescribeTable("should hand the pipe socket to the ownership manager for a nonroot VMI",
+		DescribeTable("should set socket ownership for a nonroot VMI",
 			func(makeNonRoot func(*v1.VirtualMachineInstance)) {
 				makeNonRoot(vmi)
-
-				var owned *safepath.Path
-				mockOwnership().EXPECT().SetFileOwnership(gomock.Any()).Times(1).
-					Do(func(path *safepath.Path) { owned = path })
 
 				expectPipeInjection()
 				DeferCleanup(func() { close(stopChan) })
 
 				Expect(manager.startDomainNotifyPipe(stopChan, vmi)).To(Succeed())
-				Expect(owned).ToNot(BeNil())
-				Expect(owned.String()).To(ContainSubstring("domain-notify-pipe.sock"))
+				info, err := os.Stat(socketPath)
+				Expect(err).NotTo(HaveOccurred())
+				uid := os.Geteuid()
+				if uid == 0 {
+					uid = util.NonRootUID
+				}
+				Expect(info.Sys().(*syscall.Stat_t).Uid).To(Equal(uint32(uid)))
 			},
 			Entry("marked by a nonzero runtime user", func(vmi *v1.VirtualMachineInstance) {
 				vmi.Status.RuntimeUser = 107
@@ -188,12 +177,13 @@ var _ = Describe("startDomainNotifyPipe", func() {
 			vmi.Status.RuntimeUser = 0
 			vmi.Annotations = nil
 
-			mockOwnership().EXPECT().SetFileOwnership(gomock.Any()).Times(0)
-
 			expectPipeInjection()
 			DeferCleanup(func() { close(stopChan) })
 
 			Expect(manager.startDomainNotifyPipe(stopChan, vmi)).To(Succeed())
+			info, err := os.Stat(socketPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.Sys().(*syscall.Stat_t).Uid).To(Equal(uint32(os.Geteuid())))
 		})
 	})
 

@@ -27,7 +27,6 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
-	dutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/network/cache"
 	netsriov "kubevirt.io/kubevirt/pkg/network/deviceinfo"
 	netsetup "kubevirt.io/kubevirt/pkg/network/setup"
@@ -1544,7 +1543,6 @@ func newTestSetup() testSetup {
 	const uid = "123"
 	vmi := &v1.VirtualMachineInstance{}
 	vmi.UID = uid
-	dutils.MockDefaultOwnershipManager()
 
 	return testSetup{
 		Vmi:           vmi,

@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	dutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/network/cache"
 )
 
@@ -41,7 +40,6 @@ var _ = Describe("cache", func() {
 	BeforeEach(func() {
 		cache = cacheCreator.New("/this/is/a/test/cache")
 		Expect(cache).NotTo(BeNil())
-		dutils.MockDefaultOwnershipManager()
 
 		testData = data{
 			Key:   "mykey",

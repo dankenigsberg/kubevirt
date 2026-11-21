@@ -28,7 +28,6 @@ import (
 
 	vishnetlink "github.com/vishvananda/netlink"
 
-	dutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	kfs "kubevirt.io/kubevirt/pkg/os/fs"
 	"kubevirt.io/kubevirt/pkg/pointer"
 
@@ -64,8 +63,6 @@ var _ = Describe("netpod", func() {
 		baseCacheCreator tempCacheCreator
 		state            *netpod.State
 	)
-
-	BeforeEach(dutils.MockDefaultOwnershipManager)
 
 	AfterEach(func() {
 		Expect(baseCacheCreator.New("").Delete()).To(Succeed())

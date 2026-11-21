@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -32,8 +33,8 @@ import (
 
 	"kubevirt.io/client-go/log"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/safepath"
+	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 )
 
@@ -73,17 +74,16 @@ var _ = Describe("InjectNotify", func() {
 	})
 
 	It("should make it accessible for nonroot", func() {
-		original := diskutils.DefaultOwnershipManager
-		DeferCleanup(func() {
-			diskutils.DefaultOwnershipManager = original
-		})
-		ownershipManager := diskutils.NewMockOwnershipManagerInterface(gomock.NewController(GinkgoT()))
-		diskutils.DefaultOwnershipManager = ownershipManager
-		ownershipManager.EXPECT().SetFileOwnership(gomock.Any()).Times(1)
-
 		listener, err := InjectNotify(pod, "dir", true)
 		Expect(err).ToNot(HaveOccurred())
 		defer listener.Close()
+		info, err := os.Stat(socketPath)
+		Expect(err).NotTo(HaveOccurred())
+		uid := os.Geteuid()
+		if uid == 0 {
+			uid = util.NonRootUID
+		}
+		Expect(info.Sys().(*syscall.Stat_t).Uid).To(Equal(uint32(uid)))
 	})
 })
 

@@ -50,7 +50,6 @@ import (
 	"kubevirt.io/client-go/log"
 
 	cloudinit "kubevirt.io/kubevirt/pkg/cloud-init"
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/ephemeral-disk/fake"
 	cmdv1 "kubevirt.io/kubevirt/pkg/handler-launcher-com/cmd/v1"
 	"kubevirt.io/kubevirt/pkg/libvmi"
@@ -107,7 +106,6 @@ var _ = BeforeSuite(func() {
 
 	Expect(cloudinit.SetLocalDirectory(tmpDir)).To(Succeed())
 
-	ephemeraldiskutils.MockDefaultOwnershipManager()
 })
 
 var _ = Describe("Manager", func() {

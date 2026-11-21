@@ -54,7 +54,6 @@ import (
 	hotplugdisk "kubevirt.io/kubevirt/pkg/storage/hotplug-disk"
 	"kubevirt.io/kubevirt/pkg/virt-handler/cgroup"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 )
 
@@ -84,7 +83,6 @@ var _ = Describe("HotplugVolume", func() {
 		ctrl               *gomock.Controller
 		expectedCgroupRule *devices.Rule
 		cgroupManagerMock  *cgroup.MockManager
-		ownershipManager   *diskutils.MockOwnershipManagerInterface
 	)
 
 	expectCgroupRule := func(t devices.Type, major, minor int64, allow bool) {
@@ -133,7 +131,6 @@ var _ = Describe("HotplugVolume", func() {
 		cgroupManagerMock = cgroup.NewMockManager(ctrl)
 		cgroupManagerMock.EXPECT().GetCgroupVersion().AnyTimes()
 		expectedCgroupRule = nil
-		ownershipManager = diskutils.NewMockOwnershipManagerInterface(ctrl)
 
 		nodeIsolationResult = func() isolation.IsolationResult {
 			return isolation.NewIsolationResult(os.Getpid(), os.Getppid())
@@ -293,7 +290,6 @@ var _ = Describe("HotplugVolume", func() {
 				checkpointManager:  checkpoint.NewSimpleCheckpointManager(tempDir, GinkgoT().TempDir()),
 				skipSafetyCheck:    true,
 				hotplugDiskManager: hotplugdisk.NewHotplugDiskWithOptions(tempDir),
-				ownershipManager:   ownershipManager,
 			}
 
 			deviceBasePath = func(sourceUID types.UID, kubeletPodDir string) (*safepath.Path, error) {
@@ -452,7 +448,6 @@ var _ = Describe("HotplugVolume", func() {
 			}
 			setExpectedCgroupRuns(1)
 			expectCgroupRule(devices.BlockDevice, 482, 64, true)
-			ownershipManager.EXPECT().SetFileOwnership(gomock.Any())
 
 			err = m.mountFromPod(vmi, "", cgroupManagerMock)
 			Expect(err).ToNot(HaveOccurred())
@@ -487,9 +482,8 @@ var _ = Describe("HotplugVolume", func() {
 			Expect(os.WriteFile(unsafepath.UnsafeAbsolute(deviceFile.Raw()), []byte("test"), 0644)).To(Succeed())
 
 			vmi.Status.VolumeStatus = []v1.VolumeStatus{{Name: "testvolume", HotplugVolume: &v1.HotplugVolumeStatus{}}}
-			targetDevicePath, err := newFile(targetPodPath, "testvolume")
+			_, err = newFile(targetPodPath, "testvolume")
 			Expect(err).ToNot(HaveOccurred())
-			ownershipManager.EXPECT().SetFileOwnership(targetDevicePath)
 			statSourceDevice = func(fileName *safepath.Path) (os.FileInfo, error) {
 				return fakeStat(true, 0666, 123456), nil
 			}
@@ -578,7 +572,6 @@ var _ = Describe("HotplugVolume", func() {
 
 			setExpectedCgroupRuns(2)
 			expectCgroupRule(devices.BlockDevice, 482, 64, true)
-			ownershipManager.EXPECT().SetFileOwnership(gomock.Any()).Times(2)
 
 			err = m.Mount(vmi, cgroupManagerMock)
 			Expect(err).ToNot(HaveOccurred())
@@ -750,7 +743,6 @@ var _ = Describe("HotplugVolume", func() {
 				mountRecords:       make(map[types.UID]*vmiMountTargetRecord),
 				checkpointManager:  checkpoint.NewSimpleCheckpointManager(tempDir, GinkgoT().TempDir()),
 				hotplugDiskManager: hotplugdisk.NewHotplugDiskWithOptions(tempDir),
-				ownershipManager:   ownershipManager,
 			}
 
 			deviceBasePath = func(podUID types.UID, kubeletPodDir string) (*safepath.Path, error) {
@@ -848,7 +840,6 @@ var _ = Describe("HotplugVolume", func() {
 				Expect(targetPath).To(Equal(targetFilePath))
 				return []byte("Success"), nil
 			}
-			ownershipManager.EXPECT().SetFileOwnership(targetFilePath)
 
 			err = m.mountFileSystemHotplugVolume(vmi, "testvolume", types.UID(sourcePodUID), record, false)
 			Expect(err).ToNot(HaveOccurred())
@@ -900,7 +891,7 @@ var _ = Describe("HotplugVolume", func() {
 			findMntByVolume = func(volumeName string, pid int) ([]byte, error) {
 				return fmt.Appendf(nil, findmntByVolumeRes, "testvolume", unsafepath.UnsafeAbsolute(path.Raw())), nil
 			}
-			targetFilePath, err := newFile(unsafepath.UnsafeAbsolute(targetPodPath.Raw()), "testvolume.img")
+			_, err = newFile(unsafepath.UnsafeAbsolute(targetPodPath.Raw()), "testvolume.img")
 			Expect(err).ToNot(HaveOccurred())
 			mountCommand = func(sourcePath, targetPath *safepath.Path) ([]byte, error) {
 				return []byte("Success"), nil
@@ -924,7 +915,6 @@ var _ = Describe("HotplugVolume", func() {
 			}
 
 			m.kubeletPodsDir = "/var/lib/kubelet/pods"
-			ownershipManager.EXPECT().SetFileOwnership(targetFilePath)
 
 			err = m.mountFileSystemHotplugVolume(vmi, "testvolume", types.UID(expectedSourceUID), record, false)
 			Expect(err).ToNot(HaveOccurred())
@@ -1000,7 +990,6 @@ var _ = Describe("HotplugVolume", func() {
 				checkpointManager:  checkpoint.NewSimpleCheckpointManager(tempDir, GinkgoT().TempDir()),
 				skipSafetyCheck:    true,
 				hotplugDiskManager: hotplugdisk.NewHotplugDiskWithOptions(tempDir),
-				ownershipManager:   ownershipManager,
 			}
 
 			deviceBasePath = func(podUID types.UID, kubeletPodDir string) (*safepath.Path, error) {
@@ -1032,14 +1021,7 @@ var _ = Describe("HotplugVolume", func() {
 		})
 
 		verifyMountRecords := func(isMount bool, expectedPaths ...string) {
-			capturedPaths := []string{}
-
 			if isMount {
-				ownershipManager.EXPECT().SetFileOwnership(gomock.Any()).Times(len(expectedPaths)).DoAndReturn(func(path *safepath.Path) error {
-					capturedPaths = append(capturedPaths, unsafepath.UnsafeAbsolute(path.Raw()))
-					return nil
-				})
-
 				err = m.Mount(vmi, cgroupManagerMock)
 			} else {
 				err = m.Unmount(vmi, cgroupManagerMock)
@@ -1065,9 +1047,6 @@ var _ = Describe("HotplugVolume", func() {
 			for _, path := range expectedPaths {
 				_, err = os.Stat(path)
 				Expect(err).ToNot(HaveOccurred())
-			}
-			if isMount {
-				Expect(capturedPaths).To(ContainElements(expectedPaths))
 			}
 		}
 
@@ -1357,12 +1336,6 @@ var _ = Describe("HotplugVolume", func() {
 			}
 
 			expectedPaths := []string{targetFilePath, blockVolume}
-			capturedPaths := []string{}
-
-			ownershipManager.EXPECT().SetFileOwnership(gomock.Any()).Times(2).DoAndReturn(func(path *safepath.Path) error {
-				capturedPaths = append(capturedPaths, unsafepath.UnsafeAbsolute(path.Raw()))
-				return nil
-			})
 
 			err = m.Mount(vmi, cgroupManagerMock)
 			Expect(err).ToNot(HaveOccurred())
@@ -1384,9 +1357,9 @@ var _ = Describe("HotplugVolume", func() {
 			bytes, err := os.ReadFile(filepath.Join(tempDir, string(vmi.UID)))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(bytes).To(Equal(expectedBytes))
-			_, err = os.Stat(targetFilePath)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(capturedPaths).To(ContainElements(expectedPaths))
+			for _, path := range expectedPaths {
+				Expect(path).To(BeAnExistingFile())
+			}
 
 			err = m.UnmountAll(vmi, cgroupManagerMock)
 			Expect(err).ToNot(HaveOccurred())

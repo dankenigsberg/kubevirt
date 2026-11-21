@@ -37,7 +37,6 @@ import (
 	"kubevirt.io/client-go/log"
 
 	"kubevirt.io/kubevirt/pkg/controller"
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/hypervisor"
 	"kubevirt.io/kubevirt/pkg/libvmi"
 	"kubevirt.io/kubevirt/pkg/safepath"
@@ -45,6 +44,7 @@ import (
 	hostdisk "kubevirt.io/kubevirt/pkg/storage/host-disk"
 	"kubevirt.io/kubevirt/pkg/storage/virtiofs"
 	"kubevirt.io/kubevirt/pkg/util"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	virtconfig "kubevirt.io/kubevirt/pkg/virt-config"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 	launcherclients "kubevirt.io/kubevirt/pkg/virt-handler/launcher-clients"
@@ -270,7 +270,7 @@ func (c *BaseController) claimDeviceOwnership(virtLauncherRootMount *safepath.Pa
 		return err
 	}
 
-	return diskutils.DefaultOwnershipManager.SetFileOwnership(devicePath)
+	return rootful.ChownToQemu(devicePath)
 }
 
 func (c *BaseController) configureDiskImages(
@@ -297,7 +297,7 @@ func (c *BaseController) configureSEVDeviceOwnership(vmi *v1.VirtualMachineInsta
 		if err != nil {
 			return err
 		}
-		if err := diskutils.DefaultOwnershipManager.SetFileOwnership(sevDevice); err != nil {
+		if err := rootful.ChownToQemu(sevDevice); err != nil {
 			return fmt.Errorf("failed to set SEV device owner: %v", err)
 		}
 	}
@@ -310,7 +310,7 @@ func (c *BaseController) configureVirtioFS(vmi *v1.VirtualMachineInstance, isola
 		if err != nil {
 			return err
 		}
-		if err := diskutils.DefaultOwnershipManager.SetFileOwnership(socketPath); err != nil {
+		if err := rootful.ChownToQemu(socketPath); err != nil {
 			return err
 		}
 	}

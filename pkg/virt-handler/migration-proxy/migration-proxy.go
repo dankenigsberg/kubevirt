@@ -33,9 +33,9 @@ import (
 
 	"kubevirt.io/client-go/log"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/util/net/ip"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	virtconfig "kubevirt.io/kubevirt/pkg/virt-config"
 )
 
@@ -451,7 +451,7 @@ func (m *migrationProxy) createUnixListener() error {
 		return err
 	}
 
-	if ownerErr := diskutils.DefaultOwnershipManager.SetFileOwnership(socketPath); ownerErr != nil {
+	if ownerErr := rootful.ChownToQemu(socketPath); ownerErr != nil {
 		listener.Close()
 		m.logger.Reason(ownerErr).Error("failed to change ownership on migration unix socket")
 		return ownerErr

@@ -38,10 +38,10 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/log"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/storage/cbt"
 	kutil "kubevirt.io/kubevirt/pkg/util"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/metadata"
 	api "kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/cli"
@@ -530,7 +530,7 @@ func preparePullBackupSocketFunc(vmi *v1.VirtualMachineInstance) (string, error)
 	if err != nil {
 		return "", err
 	}
-	if err := diskutils.DefaultOwnershipManager.SetFileOwnership(safeDir); err != nil {
+	if err := rootful.ChownToQemu(safeDir); err != nil {
 		return "", fmt.Errorf("failed to set the ownership of %s: %w", dir, err)
 	}
 	return filepath.Join(dir, cbt.NBDSocketName), nil

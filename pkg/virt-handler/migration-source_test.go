@@ -50,7 +50,6 @@ import (
 	"kubevirt.io/kubevirt/pkg/certificates"
 	virtcontroller "kubevirt.io/kubevirt/pkg/controller"
 	controllertesting "kubevirt.io/kubevirt/pkg/controller/testing"
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/libvmi"
 	libvmistatus "kubevirt.io/kubevirt/pkg/libvmi/status"
 	"kubevirt.io/kubevirt/pkg/safepath"
@@ -115,7 +114,6 @@ var _ = Describe("VirtualMachineInstance migration target", func() {
 	}
 
 	BeforeEach(func() {
-		diskutils.MockDefaultOwnershipManager()
 
 		wg = &sync.WaitGroup{}
 		stop = make(chan struct{})

@@ -29,11 +29,11 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	neterrors "kubevirt.io/kubevirt/pkg/network/errors"
 	netvmispec "kubevirt.io/kubevirt/pkg/network/vmispec"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/storage/types"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 )
 
@@ -63,7 +63,7 @@ func changeOwnershipOfBlockDevices(vmi *v1.VirtualMachineInstance, res isolation
 		if err != nil {
 			return nil
 		}
-		if err := diskutils.DefaultOwnershipManager.SetFileOwnership(devPath); err != nil {
+		if err := rootful.ChownToQemu(devPath); err != nil {
 			return err
 		}
 
@@ -112,7 +112,7 @@ func (*BaseController) prepareVFIO(res isolation.IsolationResult) error {
 		if err != nil {
 			return err
 		}
-		if err := diskutils.DefaultOwnershipManager.SetFileOwnership(groupPath); err != nil {
+		if err := rootful.ChownToQemu(groupPath); err != nil {
 			return err
 		}
 	}

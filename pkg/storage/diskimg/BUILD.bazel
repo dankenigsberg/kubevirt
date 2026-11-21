@@ -9,7 +9,7 @@ go_library(
     importpath = "kubevirt.io/kubevirt/pkg/storage/diskimg",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/ephemeral-disk-utils:go_default_library",
+        "//pkg/util/rootful:go_default_library",
         "//pkg/safepath:go_default_library",
         "//pkg/storage/disksize:go_default_library",
         "//pkg/storage/types:go_default_library",
@@ -33,7 +33,6 @@ go_test(
     embed = [":go_default_library"],
     race = "on",
     deps = [
-        "//pkg/ephemeral-disk-utils:go_default_library",
         "//pkg/libvmi:go_default_library",
         "//pkg/libvmi/status:go_default_library",
         "//pkg/safepath:go_default_library",

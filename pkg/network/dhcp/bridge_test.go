@@ -27,7 +27,6 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
-	dutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/network/cache"
 	netdriver "kubevirt.io/kubevirt/pkg/network/driver"
 	virtnetlink "kubevirt.io/kubevirt/pkg/network/link"
@@ -47,7 +46,6 @@ var _ = Describe("Bridge DHCP configurator", func() {
 	var cacheCreator tempCacheCreator
 
 	BeforeEach(func() {
-		dutils.MockDefaultOwnershipManager()
 		ctrl = gomock.NewController(GinkgoT())
 		mockHandler = netdriver.NewMockNetworkHandler(ctrl)
 	})
