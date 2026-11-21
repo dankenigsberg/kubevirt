@@ -36,6 +36,7 @@ import (
 
 	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/util/net/dns"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 var cloudInitLocalDir = "/var/run/kubevirt-ephemeral-disks/cloud-init-data"
@@ -626,16 +627,8 @@ func writeIso(iso string, generate func(staging string) error) error {
 		return err
 	}
 	defer os.Remove(staging)
-	if err := chownToQEMU(staging); err != nil {
+	if err := rootful.ChownToQemu(staging); err != nil {
 		return err
 	}
 	return os.Rename(staging, iso)
-}
-
-// chownToQEMU is needed if virt-launcher runs as featuregate.Root
-func chownToQEMU(path string) error {
-	if os.Geteuid() != 0 {
-		return nil
-	}
-	return os.Chown(path, util.NonRootUID, util.NonRootUID)
 }

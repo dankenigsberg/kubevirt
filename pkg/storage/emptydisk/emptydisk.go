@@ -32,6 +32,7 @@ import (
 
 	"kubevirt.io/kubevirt/pkg/storage/disksize"
 	"kubevirt.io/kubevirt/pkg/util"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 const emptyDiskBaseDir = "/var/run/libvirt/empty-disks/"
@@ -91,7 +92,7 @@ func createQCOW(file string, size string) error {
 
 // NewEmptyDiskCreator uses the virt-launcher empty disk directory.
 func NewEmptyDiskCreator() *emptyDiskCreator {
-	return NewEmptyDiskCreatorWith(emptyDiskBaseDir, createQCOW, chownToQemu)
+	return NewEmptyDiskCreatorWith(emptyDiskBaseDir, createQCOW, rootful.ChownToQemu)
 }
 
 // NewEmptyDiskCreatorWith uses a custom directory, disk creation function, and ownership function.
@@ -101,12 +102,4 @@ func NewEmptyDiskCreatorWith(directory string, discCreateFunc func(filePath stri
 		discCreateFunc:   discCreateFunc,
 		chownQemuFunc:    chownQemuFunc,
 	}
-}
-
-// chownToQemu is needed if virt-launcher runs as featuregate.Root
-func chownToQemu(path string) error {
-	if os.Geteuid() != 0 {
-		return nil
-	}
-	return os.Chown(path, util.NonRootUID, util.NonRootUID)
 }
