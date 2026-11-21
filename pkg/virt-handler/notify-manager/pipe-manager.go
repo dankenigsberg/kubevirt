@@ -26,6 +26,8 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/log"
 
+	"kubevirt.io/kubevirt/pkg/safepath"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 	"kubevirt.io/kubevirt/pkg/virt-handler/notify-server/pipe"
 	"kubevirt.io/kubevirt/pkg/vmitrait"
@@ -33,12 +35,14 @@ import (
 
 func NewPipeManager(podIsolationDetector isolation.PodIsolationDetector, virtShareDir string) *pipeManager {
 	return &pipeManager{
+		chown:                rootful.ChownToQemuAlways,
 		podIsolationDetector: podIsolationDetector,
 		virtShareDir:         virtShareDir,
 	}
 }
 
 type pipeManager struct {
+	chown                func(*safepath.Path) error
 	podIsolationDetector isolation.PodIsolationDetector
 	virtShareDir         string
 }
@@ -53,7 +57,7 @@ func (m *pipeManager) startDomainNotifyPipe(domainPipeStopChan <-chan struct{}, 
 		return fmt.Errorf("failed to detect isolation for launcher pod when setting up notify pipe: %v", err)
 	}
 
-	listener, err := pipe.InjectNotify(res, m.virtShareDir, vmitrait.IsNonRoot(vmi))
+	listener, err := pipe.InjectNotify(res, m.virtShareDir, vmitrait.IsNonRoot(vmi), m.chown)
 	if err != nil {
 		return err
 	}

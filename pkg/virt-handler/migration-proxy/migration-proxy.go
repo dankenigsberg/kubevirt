@@ -47,6 +47,7 @@ const (
 var migrationPortsRange = []int{LibvirtDirectMigrationPort, LibvirtBlockMigrationPort}
 
 type migrationProxyManager struct {
+	chown              func(*safepath.Path) error
 	sourceProxies      map[string][]*migrationProxy
 	targetProxies      map[string][]*migrationProxy
 	managerLock        sync.Mutex
@@ -58,6 +59,7 @@ type migrationProxyManager struct {
 }
 
 type migrationProxy struct {
+	chown          func(*safepath.Path) error
 	mountRoot      *safepath.Path
 	unixSocketPath string
 	tcpBindAddress string
@@ -97,8 +99,9 @@ func GetMigrationPortsList(isBlockMigration bool) (ports []int) {
 	return
 }
 
-func NewMigrationProxyManager(serverTLSConfig *tls.Config, migrationTLSConfig *tls.Config, config *virtconfig.ClusterConfig) *migrationProxyManager {
+func NewMigrationProxyManager(serverTLSConfig *tls.Config, migrationTLSConfig *tls.Config, config *virtconfig.ClusterConfig, chown func(*safepath.Path) error) *migrationProxyManager {
 	return &migrationProxyManager{
+		chown:              chown,
 		sourceProxies:      make(map[string][]*migrationProxy),
 		targetProxies:      make(map[string][]*migrationProxy),
 		serverTLSConfig:    serverTLSConfig,
@@ -293,6 +296,7 @@ func (m *migrationProxyManager) StartSourceListener(key string, targetAddress st
 		unixSocketPath := SourceUnixFile("/run/kubevirt", proxyKey)
 
 		proxy := NewSourceProxy(mountRoot, unixSocketPath, targetFullAddr, migrationTLSConfig, key)
+		proxy.chown = m.chown
 
 		err := proxy.Start()
 		if err != nil {
@@ -342,6 +346,7 @@ func NewSourceProxy(
 	migrationTLSConfig *tls.Config,
 	vmiUID string) *migrationProxy {
 	return &migrationProxy{
+		chown:              rootful.ChownToQemuAlways,
 		mountRoot:          mountRoot,
 		unixSocketPath:     unixSocketPath,
 		targetAddress:      tcpTargetAddress,
@@ -451,7 +456,7 @@ func (m *migrationProxy) createUnixListener() error {
 		return err
 	}
 
-	if ownerErr := rootful.ChownToQemu(socketPath); ownerErr != nil {
+	if ownerErr := m.chown(socketPath); ownerErr != nil {
 		listener.Close()
 		m.logger.Reason(ownerErr).Error("failed to change ownership on migration unix socket")
 		return ownerErr

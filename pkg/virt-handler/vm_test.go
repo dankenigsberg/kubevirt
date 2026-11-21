@@ -172,7 +172,7 @@ var _ = Describe("VirtualMachineInstance", func() {
 		mockHotplugVolumeMounter = hotplugvolume.NewMockVolumeMounter(ctrl)
 		mockCgroupManager = cgroup.NewMockManager(ctrl)
 
-		migrationProxy := migrationproxy.NewMigrationProxyManager(tlsConfig, tlsConfig, config)
+		migrationProxy := migrationproxy.NewMigrationProxyManager(tlsConfig, tlsConfig, config, func(*safepath.Path) error { return nil })
 		fakeDownwardMetricsManager := newFakeManager()
 
 		launcherClientManager := &launcherclients.MockLauncherClientManager{
@@ -211,6 +211,7 @@ var _ = Describe("VirtualMachineInstance", func() {
 			mockHotplugVolumeMounter,
 			ghostRecordStore,
 		)
+		controller.chown = func(*safepath.Path) error { return nil }
 		controller.getCgroupManager = func(_ *v1.VirtualMachineInstance, _ string, _ hypervisor.HypervisorNodeInformation, _ bool) (cgroup.Manager, error) {
 			return mockCgroupManager, nil
 		}

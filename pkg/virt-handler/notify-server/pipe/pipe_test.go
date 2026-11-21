@@ -24,7 +24,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -34,7 +33,6 @@ import (
 	"kubevirt.io/client-go/log"
 
 	"kubevirt.io/kubevirt/pkg/safepath"
-	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 )
 
@@ -56,7 +54,7 @@ var _ = Describe("InjectNotify", func() {
 		socketPath = filepath.Join(tmp, "dir", "domain-notify-pipe.sock")
 	})
 	It("should return working listener", func() {
-		listener, err := InjectNotify(pod, "dir", false)
+		listener, err := InjectNotify(pod, "dir", false, nil)
 		Expect(err).ToNot(HaveOccurred())
 		defer listener.Close()
 
@@ -74,16 +72,18 @@ var _ = Describe("InjectNotify", func() {
 	})
 
 	It("should make it accessible for nonroot", func() {
-		listener, err := InjectNotify(pod, "dir", true)
+		var ownedPath *safepath.Path
+
+		chown := func(path *safepath.Path) error {
+			ownedPath = path
+			return nil
+		}
+
+		listener, err := InjectNotify(pod, "dir", true, chown)
 		Expect(err).ToNot(HaveOccurred())
 		defer listener.Close()
-		info, err := os.Stat(socketPath)
-		Expect(err).NotTo(HaveOccurred())
-		uid := os.Geteuid()
-		if uid == 0 {
-			uid = util.NonRootUID
-		}
-		Expect(info.Sys().(*syscall.Stat_t).Uid).To(Equal(uint32(uid)))
+		Expect(ownedPath).NotTo(BeNil())
+		Expect(ownedPath.String()).To(ContainSubstring(filepath.Base(socketPath)))
 	})
 })
 
@@ -135,7 +135,7 @@ var _ = Describe("ChanFromListener", func() {
 
 		socketPath := filepath.Join(tmp, "dir", "domain-notify-pipe.sock")
 
-		listener, err := InjectNotify(pod, "dir", false)
+		listener, err := InjectNotify(pod, "dir", false, nil)
 		Expect(err).ToNot(HaveOccurred())
 		defer listener.Close()
 		ctx, cancelListener := context.WithCancel(context.Background())

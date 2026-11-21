@@ -41,7 +41,7 @@ var _ = Describe("claimDeviceOwnership", func() {
 
 		config, _, _ := testutils.NewFakeClusterConfigUsingKVConfig(&v1.KubeVirtConfiguration{})
 		controller = &BaseController{
-			clusterConfig:      config,
+			chown: func(*safepath.Path) error { return nil }, clusterConfig: config,
 			hypervisorNodeInfo: hypervisor.NewHypervisorNodeInformation(""),
 		}
 

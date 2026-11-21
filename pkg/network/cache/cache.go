@@ -28,12 +28,15 @@ import (
 	"path/filepath"
 
 	kfs "kubevirt.io/kubevirt/pkg/os/fs"
+	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 type Cache struct {
-	path string
-	fs   cacheFS
+	path  string
+	fs    cacheFS
+	root  string
+	chown func(*safepath.Path) error
 }
 
 type cacheFS interface {
@@ -44,14 +47,20 @@ type cacheFS interface {
 	WriteFile(filename string, data []byte, perm fs.FileMode) error
 }
 
-type CacheCreator struct{}
+type CacheCreator struct {
+	Chown func(*safepath.Path) error
+}
 
-func (_ CacheCreator) New(filePath string) *Cache {
-	return NewCustomCache(filePath, kfs.New())
+func (creator CacheCreator) New(filePath string) *Cache {
+	chown := creator.Chown
+	if chown == nil {
+		chown = rootful.ChownToQemuAlways
+	}
+	return &Cache{path: filePath, fs: kfs.New(), root: "/", chown: chown}
 }
 
 func NewCustomCache(path string, fs cacheFS) *Cache {
-	return &Cache{path, fs}
+	return &Cache{path: path, fs: fs}
 }
 
 func (c Cache) Entry(path string) (Cache, error) {
@@ -65,8 +74,10 @@ func (c Cache) Entry(path string) (Cache, error) {
 	}
 
 	return Cache{
-		path: filepath.Join(c.path, path),
-		fs:   c.fs,
+		path:  filepath.Join(c.path, path),
+		fs:    c.fs,
+		root:  c.root,
+		chown: c.chown,
 	}, nil
 }
 
@@ -76,7 +87,25 @@ func (c Cache) Read(data any) (any, error) {
 }
 
 func (c Cache) Write(data any) error {
-	return writeToCachedFile(c.fs, data, c.path)
+	if err := writeToCachedFile(c.fs, data, c.path); err != nil {
+		return err
+	}
+	if c.root == "" {
+		return nil
+	}
+	root, err := safepath.JoinAndResolveWithRelativeRoot(c.root)
+	if err != nil {
+		return err
+	}
+	relativePath, err := filepath.Rel(c.root, c.path)
+	if err != nil {
+		return err
+	}
+	path, err := safepath.JoinNoFollow(root, relativePath)
+	if err != nil {
+		return err
+	}
+	return c.chown(path)
 }
 
 func (c Cache) Delete() error {
@@ -100,7 +129,7 @@ func writeToCachedFile(fs cacheFS, obj any, fileName string) error {
 	if err != nil {
 		return fmt.Errorf("error writing cached object: %v", err)
 	}
-	return rootful.ChownToQemu(fileName)
+	return nil
 }
 
 func readFromCachedFile(fs cacheFS, obj any, fileName string) error {

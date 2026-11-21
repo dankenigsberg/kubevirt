@@ -99,6 +99,7 @@ type netconf interface {
 }
 
 type BaseController struct {
+	chown                       func(*safepath.Path) error
 	logger                      *log.FilteredLogger
 	host                        string
 	vmiClient                   clientv1.VirtualMachineInstancesGetter
@@ -137,6 +138,7 @@ func NewBaseController(
 ) (*BaseController, error) {
 
 	c := &BaseController{
+		chown:                       rootful.ChownToQemuAlways,
 		logger:                      logger,
 		host:                        host,
 		recorder:                    recorder,
@@ -270,7 +272,7 @@ func (c *BaseController) claimDeviceOwnership(virtLauncherRootMount *safepath.Pa
 		return err
 	}
 
-	return rootful.ChownToQemu(devicePath)
+	return c.chown(devicePath)
 }
 
 func (c *BaseController) configureDiskImages(
@@ -284,7 +286,7 @@ func (c *BaseController) configureDiskImages(
 	if err != nil {
 		return err
 	}
-	creator := diskimg.NewCreator(recorder, lessPVCSpaceToleration, minimumPVCReserveBytes, virtLauncherRootMount)
+	creator := diskimg.NewCreator(recorder, lessPVCSpaceToleration, minimumPVCReserveBytes, virtLauncherRootMount, c.chown)
 	if err := creator.Create(vmi, append(hostdisk.Images(vmi), pvcImages...)); err != nil {
 		return fmt.Errorf("preparing disk images failed: %w", err)
 	}
@@ -297,7 +299,7 @@ func (c *BaseController) configureSEVDeviceOwnership(vmi *v1.VirtualMachineInsta
 		if err != nil {
 			return err
 		}
-		if err := rootful.ChownToQemu(sevDevice); err != nil {
+		if err := c.chown(sevDevice); err != nil {
 			return fmt.Errorf("failed to set SEV device owner: %v", err)
 		}
 	}
@@ -310,7 +312,7 @@ func (c *BaseController) configureVirtioFS(vmi *v1.VirtualMachineInstance, isola
 		if err != nil {
 			return err
 		}
-		if err := rootful.ChownToQemu(socketPath); err != nil {
+		if err := c.chown(socketPath); err != nil {
 			return err
 		}
 	}

@@ -165,6 +165,7 @@ var _ = Describe("HotplugVolume", func() {
 			vmi.UID = "1234"
 
 			m = &volumeMounter{
+				chown:              func(*safepath.Path) error { return nil },
 				mountRecords:       make(map[types.UID]*vmiMountTargetRecord),
 				checkpointManager:  checkpoint.NewSimpleCheckpointManager(tempDir, GinkgoT().TempDir()),
 				hotplugDiskManager: hotplugdisk.NewHotplugDiskWithOptions(tempDir),
@@ -286,6 +287,7 @@ var _ = Describe("HotplugVolume", func() {
 			record = &vmiMountTargetRecord{}
 
 			m = &volumeMounter{
+				chown:              func(*safepath.Path) error { return nil },
 				mountRecords:       make(map[types.UID]*vmiMountTargetRecord),
 				checkpointManager:  checkpoint.NewSimpleCheckpointManager(tempDir, GinkgoT().TempDir()),
 				skipSafetyCheck:    true,
@@ -740,6 +742,7 @@ var _ = Describe("HotplugVolume", func() {
 			record = &vmiMountTargetRecord{}
 
 			m = &volumeMounter{
+				chown:              func(*safepath.Path) error { return nil },
 				mountRecords:       make(map[types.UID]*vmiMountTargetRecord),
 				checkpointManager:  checkpoint.NewSimpleCheckpointManager(tempDir, GinkgoT().TempDir()),
 				hotplugDiskManager: hotplugdisk.NewHotplugDiskWithOptions(tempDir),
@@ -986,6 +989,7 @@ var _ = Describe("HotplugVolume", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			m = &volumeMounter{
+				chown:              func(*safepath.Path) error { return nil },
 				mountRecords:       make(map[types.UID]*vmiMountTargetRecord),
 				checkpointManager:  checkpoint.NewSimpleCheckpointManager(tempDir, GinkgoT().TempDir()),
 				skipSafetyCheck:    true,

@@ -33,11 +33,10 @@ import (
 	netvmispec "kubevirt.io/kubevirt/pkg/network/vmispec"
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/storage/types"
-	"kubevirt.io/kubevirt/pkg/util/rootful"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 )
 
-func changeOwnershipOfBlockDevices(vmi *v1.VirtualMachineInstance, res isolation.IsolationResult) error {
+func (c *BaseController) changeOwnershipOfBlockDevices(vmi *v1.VirtualMachineInstance, res isolation.IsolationResult) error {
 	volumeModes := map[string]*k8sv1.PersistentVolumeMode{}
 	for _, volumeStatus := range vmi.Status.VolumeStatus {
 		if volumeStatus.PersistentVolumeClaimInfo != nil {
@@ -63,7 +62,7 @@ func changeOwnershipOfBlockDevices(vmi *v1.VirtualMachineInstance, res isolation
 		if err != nil {
 			return nil
 		}
-		if err := rootful.ChownToQemu(devPath); err != nil {
+		if err := c.chown(devPath); err != nil {
 			return err
 		}
 
@@ -72,10 +71,10 @@ func changeOwnershipOfBlockDevices(vmi *v1.VirtualMachineInstance, res isolation
 }
 
 func (c *BaseController) prepareStorage(vmi *v1.VirtualMachineInstance, res isolation.IsolationResult) error {
-	return changeOwnershipOfBlockDevices(vmi, res)
+	return c.changeOwnershipOfBlockDevices(vmi, res)
 }
 
-func (*BaseController) prepareVFIO(res isolation.IsolationResult) error {
+func (c *BaseController) prepareVFIO(res isolation.IsolationResult) error {
 	vfioBasePath, err := isolation.SafeJoin(res, "dev", "vfio")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -112,7 +111,7 @@ func (*BaseController) prepareVFIO(res isolation.IsolationResult) error {
 		if err != nil {
 			return err
 		}
-		if err := rootful.ChownToQemu(groupPath); err != nil {
+		if err := c.chown(groupPath); err != nil {
 			return err
 		}
 	}

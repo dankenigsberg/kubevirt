@@ -213,7 +213,7 @@ var _ = Describe("VirtualMachineInstance migration target", func() {
 
 		mockHotplugVolumeMounter = hotplugvolume.NewMockVolumeMounter(ctrl)
 
-		migrationProxy := migrationproxy.NewMigrationProxyManager(tlsConfig, tlsConfig, config)
+		migrationProxy := migrationproxy.NewMigrationProxyManager(tlsConfig, tlsConfig, config, func(*safepath.Path) error { return nil })
 		launcherClientManager := &launcherclients.MockLauncherClientManager{
 			Initialized:      true,
 			GhostRecordStore: ghostRecordStore,
@@ -242,6 +242,7 @@ var _ = Describe("VirtualMachineInstance migration target", func() {
 			mockHotplugVolumeMounter,
 			networkBindingPluginMemoryCalculator,
 		)
+		controller.chown = func(*safepath.Path) error { return nil }
 
 		vmiTestUUID = uuid.NewUUID()
 		podTestUUID = uuid.NewUUID()

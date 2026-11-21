@@ -43,7 +43,6 @@ import (
 
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/testutils"
-	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 	notifyserver "kubevirt.io/kubevirt/pkg/virt-handler/notify-server"
 	notifyclient "kubevirt.io/kubevirt/pkg/virt-launcher/notify-client"
@@ -153,17 +152,19 @@ var _ = Describe("startDomainNotifyPipe", func() {
 			func(makeNonRoot func(*v1.VirtualMachineInstance)) {
 				makeNonRoot(vmi)
 
+				var ownedPath *safepath.Path
+
+				manager.chown = func(path *safepath.Path) error {
+					ownedPath = path
+					return nil
+				}
+
 				expectPipeInjection()
 				DeferCleanup(func() { close(stopChan) })
 
 				Expect(manager.startDomainNotifyPipe(stopChan, vmi)).To(Succeed())
-				info, err := os.Stat(socketPath)
-				Expect(err).NotTo(HaveOccurred())
-				uid := os.Geteuid()
-				if uid == 0 {
-					uid = util.NonRootUID
-				}
-				Expect(info.Sys().(*syscall.Stat_t).Uid).To(Equal(uint32(uid)))
+				Expect(ownedPath).NotTo(BeNil())
+				Expect(ownedPath.String()).To(ContainSubstring(filepath.Base(socketPath)))
 			},
 			Entry("marked by a nonzero runtime user", func(vmi *v1.VirtualMachineInstance) {
 				vmi.Status.RuntimeUser = 107

@@ -151,6 +151,7 @@ var (
 )
 
 type volumeMounter struct {
+	chown              func(*safepath.Path) error
 	checkpointManager  checkpoint.CheckpointManager
 	mountRecords       map[types.UID]*vmiMountTargetRecord
 	mountRecordsLock   sync.Mutex
@@ -195,6 +196,7 @@ func (r *vmiMountTargetRecord) appendPath(path string) bool {
 // NewVolumeMounter creates a new VolumeMounter
 func NewVolumeMounter(checkpointManager checkpoint.CheckpointManager, kubeletPodsDir string, host string) VolumeMounter {
 	return &volumeMounter{
+		chown:              rootful.ChownToQemuAlways,
 		mountRecords:       make(map[types.UID]*vmiMountTargetRecord),
 		checkpointManager:  checkpointManager,
 		hotplugDiskManager: hotplugdisk.NewHotplugDiskManager(kubeletPodsDir),
@@ -478,7 +480,7 @@ func (m *volumeMounter) mountBlockHotplugVolume(
 		return err
 	}
 
-	return rootful.ChownToQemu(devicePath)
+	return m.chown(devicePath)
 }
 
 func (m *volumeMounter) getSourceMajorMinor(sourceUID types.UID, volumeName string) (uint64, os.FileMode, error) {
@@ -585,7 +587,7 @@ func (m *volumeMounter) mountFileSystemHotplugVolume(vmi *v1.VirtualMachineInsta
 		log.Log.Object(vmi).V(1).Infof("successfully mounted hotplug volume %s", volume)
 	}
 
-	return rootful.ChownToQemu(target)
+	return m.chown(target)
 }
 
 func (m *volumeMounter) findVirtlauncherUID(vmi *v1.VirtualMachineInstance) (uid types.UID) {

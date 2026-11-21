@@ -35,7 +35,6 @@ import (
 
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/util"
-	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 const (
@@ -50,6 +49,7 @@ type Image struct {
 }
 
 type Creator struct {
+	chown                  func(*safepath.Path) error
 	dirBytesAvailableFunc  func(dir *safepath.Path, reserve uint64) (uint64, error)
 	recorder               record.EventRecorder
 	lessPVCSpaceToleration int
@@ -57,8 +57,9 @@ type Creator struct {
 	mountRoot              *safepath.Path
 }
 
-func NewCreator(recorder record.EventRecorder, lessPVCSpaceToleration int, minimumPVCReserveBytes uint64, mountRoot *safepath.Path) Creator {
+func NewCreator(recorder record.EventRecorder, lessPVCSpaceToleration int, minimumPVCReserveBytes uint64, mountRoot *safepath.Path, chown func(*safepath.Path) error) Creator {
 	return Creator{
+		chown:                  chown,
 		dirBytesAvailableFunc:  dirBytesAvailable,
 		recorder:               recorder,
 		lessPVCSpaceToleration: lessPVCSpaceToleration,
@@ -98,7 +99,7 @@ func (c *Creator) createIfMissing(vmi *v1.VirtualMachineInstance, img Image) err
 	if err != nil {
 		return fmt.Errorf("failed to create disk image %s in %s: %w", img.Name, diskDir, err)
 	}
-	if err := rootful.ChownToQemu(diskPath); err != nil {
+	if err := c.chown(diskPath); err != nil {
 		return fmt.Errorf("failed to set ownership of disk image %s in %s: %w", img.Name, diskDir, err)
 	}
 	if size < img.Size {

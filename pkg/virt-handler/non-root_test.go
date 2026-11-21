@@ -41,7 +41,7 @@ var _ = Describe("prepareVFIO", func() {
 
 	BeforeEach(func() {
 		res = isolation.NewMockIsolationResult(gomock.NewController(GinkgoT()))
-		controller = &BaseController{}
+		controller = &BaseController{chown: func(*safepath.Path) error { return nil }}
 	})
 
 	mountRootOf := func(dir string) *safepath.Path {

@@ -59,7 +59,11 @@ func DeleteDHCPInterfaceCache(c cacheCreator, pid, ifaceName string) error {
 
 func NewDHCPInterfaceCache(creator cacheCreator, pid string) DHCPInterfaceCache {
 	podRootFilesystemPath := fmt.Sprintf("/proc/%s/root", pid)
-	return DHCPInterfaceCache{creator.New(filepath.Join(podRootFilesystemPath, util.VirtPrivateDir))}
+	cache := creator.New(filepath.Join(podRootFilesystemPath, util.VirtPrivateDir))
+	if cache.root != "" {
+		cache.root = podRootFilesystemPath
+	}
+	return DHCPInterfaceCache{cache}
 }
 
 func (d DHCPInterfaceCache) IfaceEntry(ifaceName string) (DHCPInterfaceCache, error) {

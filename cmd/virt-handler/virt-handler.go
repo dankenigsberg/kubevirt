@@ -78,6 +78,7 @@ import (
 	"kubevirt.io/kubevirt/pkg/service"
 	containerdisk "kubevirt.io/kubevirt/pkg/storage/container-disk"
 	"kubevirt.io/kubevirt/pkg/util"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	kvtls "kubevirt.io/kubevirt/pkg/util/tls"
 	virtconfig "kubevirt.io/kubevirt/pkg/virt-config"
 	virthandler "kubevirt.io/kubevirt/pkg/virt-handler"
@@ -329,7 +330,7 @@ func (app *virtHandlerApp) Run() {
 
 	app.clusterConfig.SetConfigModifiedCallback(vsockConfigCallback)
 
-	migrationProxy := migrationproxy.NewMigrationProxyManager(app.migrationServerTLSConfig, app.migrationClientTLSConfig, app.clusterConfig)
+	migrationProxy := migrationproxy.NewMigrationProxyManager(app.migrationServerTLSConfig, app.migrationClientTLSConfig, app.clusterConfig, rootful.ChownToQemuAlways)
 
 	stop := make(chan struct{})
 	defer close(stop)

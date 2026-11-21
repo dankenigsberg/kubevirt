@@ -36,7 +36,6 @@ import (
 	"kubevirt.io/client-go/log"
 
 	"kubevirt.io/kubevirt/pkg/safepath"
-	"kubevirt.io/kubevirt/pkg/util/rootful"
 	"kubevirt.io/kubevirt/pkg/virt-handler/isolation"
 )
 
@@ -52,7 +51,7 @@ func NewConnectToNotifyFunc(virtShareDir string) connectFunc {
 
 // InjectNotify injects the domain-notify.sock into the VMI pod and listens for connections
 func InjectNotify(pod isolation.IsolationResult, virtShareDir string,
-	nonRoot bool) (net.Listener, error) {
+	nonRoot bool, chown func(*safepath.Path) error) (net.Listener, error) {
 	root, err := pod.MountRoot()
 	if err != nil {
 		return nil, err
@@ -74,7 +73,7 @@ func InjectNotify(pod isolation.IsolationResult, virtShareDir string,
 			return nil, err
 		}
 
-		err = rootful.ChownToQemu(socketPath)
+		err = chown(socketPath)
 		if err != nil {
 			listener.Close()
 			return nil, fmt.Errorf("unable to change ownership for domain notify: %w", err)

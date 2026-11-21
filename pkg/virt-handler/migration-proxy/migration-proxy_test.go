@@ -77,6 +77,7 @@ var _ = Describe("MigrationProxy", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				sourceProxy := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12345", tlsConfig, "123")
+				sourceProxy.chown = func(*safepath.Path) error { return nil }
 				defer sourceProxy.Stop()
 
 				err = sourceProxy.Start()
@@ -134,6 +135,7 @@ var _ = Describe("MigrationProxy", func() {
 					virtqemudRelativePath,
 					"123")
 				sourceProxy := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12345", tlsConfig, "123")
+				sourceProxy.chown = func(*safepath.Path) error { return nil }
 				defer targetProxy.Stop()
 				defer sourceProxy.Stop()
 
@@ -189,7 +191,7 @@ var _ = Describe("MigrationProxy", func() {
 				config, _, _ := testutils.NewFakeClusterConfigUsingKVConfig(&v1.KubeVirtConfiguration{
 					MigrationConfiguration: migrationConfig,
 				})
-				manager := NewMigrationProxyManager(tlsConfig, tlsConfig, config)
+				manager := NewMigrationProxyManager(tlsConfig, tlsConfig, config, func(*safepath.Path) error { return nil })
 				err = manager.StartTargetListener(
 					"mykey",
 					mountRoot,
@@ -272,7 +274,7 @@ var _ = Describe("MigrationProxy", func() {
 				config, _, _ := testutils.NewFakeClusterConfigUsingKVConfig(&v1.KubeVirtConfiguration{
 					MigrationConfiguration: migrationConfig,
 				})
-				manager := NewMigrationProxyManager(tlsConfig, tlsConfig, config)
+				manager := NewMigrationProxyManager(tlsConfig, tlsConfig, config, func(*safepath.Path) error { return nil })
 				err = manager.StartTargetListener(
 					key1,
 					mountRoot,
@@ -483,6 +485,7 @@ var _ = Describe("MigrationProxy", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				proxy := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12345", nil, "123")
+				proxy.chown = func(*safepath.Path) error { return nil }
 				defer proxy.Stop()
 
 				err = proxy.Start()
@@ -503,6 +506,7 @@ var _ = Describe("MigrationProxy", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				proxy := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12345", nil, "123")
+				proxy.chown = func(*safepath.Path) error { return nil }
 				defer proxy.Stop()
 
 				err = proxy.Start()
@@ -523,6 +527,7 @@ var _ = Describe("MigrationProxy", func() {
 				const sourceRelativePath = "/source.sock"
 
 				proxy := NewSourceProxy(nil, sourceRelativePath, "127.0.0.1:12345", nil, "123")
+				proxy.chown = func(*safepath.Path) error { return nil }
 				defer proxy.Stop()
 
 				err := proxy.Start()
@@ -546,6 +551,7 @@ var _ = Describe("MigrationProxy", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				proxy := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12345", nil, "123")
+				proxy.chown = func(*safepath.Path) error { return nil }
 				defer proxy.Stop()
 
 				err = proxy.Start()
@@ -567,6 +573,7 @@ var _ = Describe("MigrationProxy", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				proxy := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12345", nil, "123")
+				proxy.chown = func(*safepath.Path) error { return nil }
 				defer proxy.Stop()
 
 				err = proxy.Start()
@@ -589,6 +596,7 @@ var _ = Describe("MigrationProxy", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				proxy := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12345", nil, "123")
+				proxy.chown = func(*safepath.Path) error { return nil }
 				defer proxy.Stop()
 
 				err = proxy.Start()
@@ -610,6 +618,7 @@ var _ = Describe("MigrationProxy", func() {
 				targetAddr := fmt.Sprintf("127.0.0.1:%d", tcpPort)
 
 				proxy := NewSourceProxy(mountRoot, sourceRelativePath, targetAddr, nil, "123")
+				proxy.chown = func(*safepath.Path) error { return nil }
 				defer proxy.Stop()
 
 				err = proxy.Start()
@@ -643,6 +652,7 @@ var _ = Describe("MigrationProxy", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				proxy1 := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12345", nil, "123")
+				proxy1.chown = func(*safepath.Path) error { return nil }
 				err = proxy1.Start()
 				Expect(err).ShouldNot(HaveOccurred())
 
@@ -654,6 +664,7 @@ var _ = Describe("MigrationProxy", func() {
 				proxy1.Stop()
 
 				proxy2 := NewSourceProxy(mountRoot, sourceRelativePath, "127.0.0.1:12346", nil, "456")
+				proxy2.chown = func(*safepath.Path) error { return nil }
 				defer proxy2.Stop()
 
 				err = proxy2.Start()

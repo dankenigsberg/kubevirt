@@ -19,17 +19,20 @@
 package cache_test
 
 import (
+	"errors"
 	"os"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"kubevirt.io/kubevirt/pkg/network/cache"
+	cachepkg "kubevirt.io/kubevirt/pkg/network/cache"
+	"kubevirt.io/kubevirt/pkg/safepath"
 )
 
 var _ = Describe("cache", func() {
 	var cacheCreator tempCacheCreator
-	var cache *cache.Cache
+	var cache *cachepkg.Cache
 
 	type data struct {
 		Key   string `json:"key"`
@@ -60,6 +63,17 @@ var _ = Describe("cache", func() {
 
 		var newData data
 		Expect(cache.Read(&newData)).To(Equal(&testData))
+	})
+
+	It("should propagate ownership errors when writing a handler cache", func() {
+		path := filepath.Join(GinkgoT().TempDir(), "entry")
+		ownershipErr := errors.New("chown failed")
+		chown := func(target *safepath.Path) error {
+			Expect(target.String()).To(ContainSubstring(path))
+			Expect(os.Stat(path)).Error().NotTo(HaveOccurred())
+			return ownershipErr
+		}
+		Expect((cachepkg.CacheCreator{Chown: chown}).New(path).Write(testData)).To(MatchError(ownershipErr))
 	})
 
 	It("should remove the cache file", func() {

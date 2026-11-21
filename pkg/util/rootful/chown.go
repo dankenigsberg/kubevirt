@@ -27,6 +27,11 @@ import (
 	"kubevirt.io/kubevirt/pkg/util"
 )
 
+// ChownToQemuAlways changes ownership on a safe path, regardless of the effective UID.
+func ChownToQemuAlways(path *safepath.Path) error {
+	return safepath.ChownAtNoFollow(path, util.NonRootUID, util.NonRootUID)
+}
+
 // ChownToQemu sets the QEMU file owner and group when running as root.
 // It rejects symlinks in the path and changes ownership on the opened file.
 func ChownToQemu[P string | *safepath.Path](path P) error {
@@ -35,7 +40,7 @@ func ChownToQemu[P string | *safepath.Path](path P) error {
 	}
 	switch path := any(path).(type) {
 	case *safepath.Path:
-		return safepath.ChownAtNoFollow(path, util.NonRootUID, util.NonRootUID)
+		return ChownToQemuAlways(path)
 	case string:
 		return chownPathToQemu(path)
 	}

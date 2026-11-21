@@ -6,7 +6,6 @@ go_library(
     importpath = "kubevirt.io/kubevirt/pkg/virt-handler/notify-server/pipe",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/util/rootful:go_default_library",
         "//pkg/safepath:go_default_library",
         "//pkg/virt-handler/isolation:go_default_library",
         "//staging/src/kubevirt.io/client-go/log:go_default_library",
@@ -23,7 +22,6 @@ go_test(
     race = "on",
     deps = [
         "//pkg/safepath:go_default_library",
-        "//pkg/util:go_default_library",
         "//pkg/virt-handler/isolation:go_default_library",
         "//staging/src/kubevirt.io/client-go/log:go_default_library",
         "//staging/src/kubevirt.io/client-go/testutils:go_default_library",

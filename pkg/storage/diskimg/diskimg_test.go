@@ -58,8 +58,8 @@ var _ = Describe("Creator", func() {
 		root, err := safepath.JoinAndResolveWithRelativeRoot("/")
 		Expect(err).NotTo(HaveOccurred())
 
-		creator = NewCreator(recorder, 0, 0, root)
-		creatorWithReserve = NewCreator(recorder, 10, 1048576, root)
+		creator = NewCreator(recorder, 0, 0, root, func(*safepath.Path) error { return nil })
+		creatorWithReserve = NewCreator(recorder, 10, 1048576, root, func(*safepath.Path) error { return nil })
 	})
 
 	image := func(volumeName string, size int64) Image {
@@ -139,7 +139,7 @@ var _ = Describe("Creator", func() {
 			Expect(err).NotTo(HaveOccurred())
 			img := image("volume1", size64Mi)
 
-			c := NewCreator(recorder, 10, math.MaxUint64, root)
+			c := NewCreator(recorder, 10, math.MaxUint64, root, func(*safepath.Path) error { return nil })
 			err = c.Create(libvmi.New(), []Image{img})
 			Expect(err).To(MatchError(ContainSubstring("not enough space")))
 			Expect(imagePath(img)).NotTo(BeAnExistingFile())

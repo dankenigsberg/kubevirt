@@ -9,7 +9,6 @@ go_library(
     importpath = "kubevirt.io/kubevirt/pkg/storage/diskimg",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/util/rootful:go_default_library",
         "//pkg/safepath:go_default_library",
         "//pkg/storage/disksize:go_default_library",
         "//pkg/storage/types:go_default_library",
