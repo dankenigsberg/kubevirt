@@ -27,7 +27,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	v1 "kubevirt.io/api/core/v1"
+
 	"kubevirt.io/kubevirt/pkg/config"
+	"kubevirt.io/kubevirt/pkg/libvmi"
 )
 
 var _ = Describe("Config ISO planning and publication", func() {
@@ -47,7 +50,28 @@ var _ = Describe("Config ISO planning and publication", func() {
 		}))
 	})
 
+	It("cleans staging files when publication fails", func() {
+		dir := GinkgoT().TempDir()
+		useConfigMapPaths(dir)
+		Expect(os.MkdirAll(config.GetConfigMapSourcePath("volume"), 0700)).To(Succeed())
+		output := config.GetConfigMapDiskPath("volume")
+		Expect(os.Mkdir(output, 0700)).To(Succeed())
+		vmi := libvmi.New(libvmi.WithConfigMapDisk("config", "volume"))
+		vmi.Status.VolumeStatus = []v1.VolumeStatus{{Name: "volume", Size: 16}}
+		Expect(config.CreateConfigMapDisks(vmi, true)).To(HaveOccurred())
+		Expect(os.ReadDir(dir)).To(HaveLen(2))
+		Expect(os.Stat(output)).To(Satisfy(func(info os.FileInfo) bool { return info.IsDir() }))
+	})
 })
+
+func useConfigMapPaths(dir string) {
+	originalSource, originalDisks := config.ConfigMapSourceDir, config.ConfigMapDisksDir
+	DeferCleanup(func() {
+		config.ConfigMapSourceDir, config.ConfigMapDisksDir = originalSource, originalDisks
+	})
+	config.ConfigMapDisksDir = dir
+	config.ConfigMapSourceDir = filepath.Join(dir, "missing")
+}
 
 func requireXorrisofs() {
 	if _, err := exec.LookPath("xorrisofs"); err != nil {

@@ -29,14 +29,14 @@ import (
 )
 
 // Assuming windows does not care what's the exact label.
-var sysprepVolumeLabel = "unattendCD"
+const sysprepVolumeLabel = "unattendCD"
 
 // GetSysprepSourcePath returns a path to the Sysprep volume mounted on a pod
 func GetSysprepSourcePath(volumeName string) string {
 	return filepath.Join(SysprepSourceDir, volumeName)
 }
 
-// GetSysprepDiskPath returns a path to a ConfigMap iso image created based on a volume name
+// GetSysprepDiskPath returns a path to a Sysprep iso image created based on a volume name
 func GetSysprepDiskPath(volumeName string) string {
 	return filepath.Join(SysprepDisksDir, volumeName+".iso")
 }
@@ -49,13 +49,9 @@ func sysprepVolumeHasContents(sysprepVolume *v1.SysprepSource) bool {
 const autounattendFilename = "autounattend.xml"
 const unattendFilename = "unattend.xml"
 
-func validateUnattendPresence(dirPath string) error {
-	files, err := os.ReadDir(dirPath)
-	if err != nil {
-		return fmt.Errorf("Error validating that %s or %s have been provided: %w", autounattendFilename, unattendFilename, err)
-	}
-	for _, file := range files {
-		if f := strings.ToLower(file.Name()); f == autounattendFilename || f == unattendFilename {
+func validateUnattendPresence(entries []os.DirEntry) error {
+	for _, entry := range entries {
+		if name := strings.ToLower(entry.Name()); name == autounattendFilename || name == unattendFilename {
 			return nil
 		}
 	}
@@ -68,11 +64,11 @@ func CreateSysprepDisks(vmi *v1.VirtualMachineInstance, emptyIso bool) error {
 		if !shouldCreateSysprepDisk(volume.Sysprep) {
 			continue
 		}
-		vmiIsoSize, err := findIsoSize(vmi, &volume, emptyIso)
+		plan, err := planSysprepISO(vmi, volume.Name, emptyIso)
 		if err != nil {
 			return err
 		}
-		if err := createSysprepDisk(volume.Name, vmiIsoSize); err != nil {
+		if err := plan.write(); err != nil {
 			return err
 		}
 	}
@@ -83,27 +79,19 @@ func shouldCreateSysprepDisk(volumeSysprep *v1.SysprepSource) bool {
 	return volumeSysprep != nil && sysprepVolumeHasContents(volumeSysprep)
 }
 
-func createSysprepDisk(volumeName string, size int64) error {
-	sysprepSourcePath := GetSysprepSourcePath(volumeName)
-	if err := validateUnattendPresence(sysprepSourcePath); err != nil {
-		return err
-	}
-	filesPath, err := getFilesLayout(sysprepSourcePath)
+func planSysprepISO(vmi *v1.VirtualMachineInstance, volumeName string, emptyIso bool) (isoPlan, error) {
+	output := GetSysprepDiskPath(volumeName)
+	size, err := findIsoSize(vmi, volumeName, emptyIso)
 	if err != nil {
-		return err
+		return isoPlan{}, err
 	}
-
-	return createIsoImageAndSetFileOwnership(volumeName, filesPath, size)
-}
-
-func createIsoImageAndSetFileOwnership(volumeName string, filesPath []string, size int64) error {
-	disk := GetSysprepDiskPath(volumeName)
-	if err := createIsoConfigImage(disk, sysprepVolumeLabel, filesPath, size); err != nil {
-		return err
+	source := GetSysprepSourcePath(volumeName)
+	entries, err := os.ReadDir(source)
+	if err != nil {
+		return isoPlan{}, fmt.Errorf("reading Sysprep source %s: %w", source, err)
 	}
-	if err := chownToQEMU(disk); err != nil {
-		return err
+	if err := validateUnattendPresence(entries); err != nil {
+		return isoPlan{}, err
 	}
-
-	return nil
+	return isoPlan{output: output, layout: BuildISOLayout(sysprepVolumeLabel, source, entries), placeholder: size != 0, size: size}, nil
 }

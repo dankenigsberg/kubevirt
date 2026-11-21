@@ -20,6 +20,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -80,6 +81,13 @@ var (
 	ServiceAccountDiskName = "service-account.iso"
 )
 
+type isoPlan struct {
+	output      string
+	layout      ISOLayout
+	placeholder bool
+	size        int64
+}
+
 // ISOLayout describes the volume label and graft points of a config ISO.
 type ISOLayout struct {
 	Label       string
@@ -100,90 +108,59 @@ func BuildISOLayout(label, source string, entries []os.DirEntry) ISOLayout {
 	return layout
 }
 
-func getFilesLayout(dirPath string) ([]string, error) {
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		return nil, err
-	}
-	return BuildISOLayout("", dirPath, entries).GraftPoints, nil
-}
-
-func defaultCreateIsoImage(iso string, volID string, files []string) error {
-	if volID == "" {
-		volID = "cfgdata"
-	}
-
-	isoStaging := fmt.Sprintf("%s.staging", iso)
-
-	var args []string
-	args = append(args, "-output")
-	args = append(args, isoStaging)
-	args = append(args, "-follow-links")
-	args = append(args, "-volid")
-	args = append(args, volID)
-	args = append(args, "-joliet")
-	args = append(args, "-rock")
-	args = append(args, "-graft-points")
-	args = append(args, "-partition_cyl_align")
-	args = append(args, "on")
-	args = append(args, files...)
-
-	isoBinary := "xorrisofs"
-
-	// #nosec No risk for attacker injection. Parameters are predefined strings
-	cmd := exec.Command(isoBinary, args...)
-	err := cmd.Run()
+func (plan isoPlan) write() error {
+	// Use a unique staging directory beside the destination so concurrent
+	// writers can publish complete images with an atomic rename.
+	dir, err := os.MkdirTemp(filepath.Dir(plan.output), ".iso-")
 	if err != nil {
 		return err
 	}
-	err = os.Rename(isoStaging, iso)
+	defer os.RemoveAll(dir)
 
-	return err
-}
-
-func defaultCreateEmptyIsoImage(iso string, size int64) error {
-	isoStaging := fmt.Sprintf("%s.staging", iso)
-
-	f, err := os.Create(isoStaging)
-	if err != nil {
-		return fmt.Errorf("failed to create empty iso: '%s'", isoStaging)
-	}
-	err = util.WriteBytes(f, 0, size)
-	if err != nil {
-		return err
-	}
-	util.CloseIOAndCheckErr(f, &err)
-	if err != nil {
-		return err
-	}
-	err = os.Rename(isoStaging, iso)
-
-	return err
-}
-
-func createIsoConfigImage(output string, volID string, files []string, size int64) error {
-	var err error
-	if size == 0 {
-		err = defaultCreateIsoImage(output, volID, files)
-	} else {
-		err = defaultCreateEmptyIsoImage(output, size)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func findIsoSize(vmi *v1.VirtualMachineInstance, volume *v1.Volume, emptyIso bool) (int64, error) {
-	if emptyIso {
-		for _, vs := range vmi.Status.VolumeStatus {
-			if vs.Name == volume.Name {
-				return vs.Size, nil
-			}
+	staging := filepath.Join(dir, filepath.Base(plan.output))
+	if plan.placeholder {
+		file, err := os.Create(staging)
+		if err != nil {
+			return err
 		}
-		return 0, fmt.Errorf("failed to find the status of volume %s", volume.Name)
+		if err := errors.Join(util.WriteBytes(file, 0, plan.size), file.Close()); err != nil {
+			return err
+		}
+	} else {
+		args := []string{
+			"-output", staging, "-follow-links", "-volid", plan.layout.Label,
+			"-joliet", "-rock", "-graft-points", "-partition_cyl_align", "on",
+		}
+		args = append(args, plan.layout.GraftPoints...)
+		// #nosec Graft points are derived from the mounted volume entries.
+		if err := exec.Command("xorrisofs", args...).Run(); err != nil {
+			return err
+		}
 	}
-	return 0, nil
+	if err := chownToQEMU(staging); err != nil {
+		return err
+	}
+	return os.Rename(staging, plan.output)
+}
+
+// chownToQEMU sets ISO ownership when virt-launcher runs as root.
+func chownToQEMU(path string) error {
+	if os.Geteuid() != 0 {
+		return nil
+	}
+	return os.Chown(path, util.NonRootUID, util.NonRootUID)
+}
+
+func findIsoSize(vmi *v1.VirtualMachineInstance, volumeName string, emptyIso bool) (int64, error) {
+	if !emptyIso {
+		return 0, nil
+	}
+	for _, status := range vmi.Status.VolumeStatus {
+		if status.Name == volumeName {
+			return status.Size, nil
+		}
+	}
+	return 0, fmt.Errorf("failed to find the status of volume %s", volumeName)
 }
 
 type volumeInfo interface {
@@ -193,48 +170,45 @@ type volumeInfo interface {
 	getLabel(*v1.Volume) string
 }
 
-func createIsoDisksForConfigVolumes(vmi *v1.VirtualMachineInstance, emptyIso bool, info volumeInfo) error {
+func configVolumesForDisks(vmi *v1.VirtualMachineInstance, info volumeInfo) []v1.Volume {
 	volumes := make(map[string]v1.Volume)
 	for _, volume := range vmi.Spec.Volumes {
 		if info.isValidType(&volume) {
 			volumes[volume.Name] = volume
 		}
 	}
-
+	var selected []v1.Volume
 	for _, disk := range vmi.Spec.Domain.Devices.Disks {
-		volume, ok := volumes[disk.Name]
-		if !ok {
-			continue
-		}
-
-		filesPath, err := getFilesLayout(info.getSourcePath(&volume))
-		if err != nil {
-			return err
-		}
-
-		isoPath := info.getIsoPath(&volume)
-		vmiIsoSize, err := findIsoSize(vmi, &volume, emptyIso)
-		if err != nil {
-			return err
-		}
-
-		label := info.getLabel(&volume)
-		if err := createIsoConfigImage(isoPath, label, filesPath, vmiIsoSize); err != nil {
-			return err
-		}
-
-		if err := chownToQEMU(isoPath); err != nil {
-			return err
+		if volume, ok := volumes[disk.Name]; ok {
+			selected = append(selected, volume)
 		}
 	}
-
-	return nil
+	return selected
 }
 
-// chownToQEMU sets ISO ownership when virt-launcher runs as root.
-func chownToQEMU(path string) error {
-	if os.Geteuid() != 0 {
-		return nil
+func planConfigISO(vmi *v1.VirtualMachineInstance, volume *v1.Volume, emptyIso bool, info volumeInfo) (isoPlan, error) {
+	output := info.getIsoPath(volume)
+	source := info.getSourcePath(volume)
+	entries, err := os.ReadDir(source)
+	if err != nil {
+		return isoPlan{}, err
 	}
-	return os.Chown(path, util.NonRootUID, util.NonRootUID)
+	size, err := findIsoSize(vmi, volume.Name, emptyIso)
+	if err != nil {
+		return isoPlan{}, err
+	}
+	return isoPlan{output: output, layout: BuildISOLayout(info.getLabel(volume), source, entries), placeholder: size != 0, size: size}, nil
+}
+
+func createIsoDisksForConfigVolumes(vmi *v1.VirtualMachineInstance, emptyIso bool, info volumeInfo) error {
+	for _, volume := range configVolumesForDisks(vmi, info) {
+		plan, err := planConfigISO(vmi, &volume, emptyIso, info)
+		if err != nil {
+			return err
+		}
+		if err := plan.write(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
