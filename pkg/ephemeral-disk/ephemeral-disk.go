@@ -28,8 +28,8 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/util"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 )
 
@@ -120,7 +120,7 @@ func (c *ephemeralDiskCreator) CreateBackedImageForVolume(volume v1.Volume, back
 	}
 
 	// We need to ensure that the permissions are setup correctly.
-	err = diskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(imagePath)
+	err = rootful.ChownToQemu(imagePath)
 	return err
 }
 

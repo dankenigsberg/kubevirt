@@ -25,7 +25,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 
 	"kubevirt.io/kubevirt/pkg/util"
 
@@ -222,7 +222,7 @@ func createIsoDisksForConfigVolumes(vmi *v1.VirtualMachineInstance, emptyIso boo
 			return err
 		}
 
-		if err := ephemeraldiskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(isoPath); err != nil {
+		if err := rootful.ChownToQemu(isoPath); err != nil {
 			return err
 		}
 	}

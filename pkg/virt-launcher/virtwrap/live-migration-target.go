@@ -38,11 +38,11 @@ import (
 	pluginv1alpha1 "kubevirt.io/api/plugin/v1alpha1"
 
 	virtwait "kubevirt.io/kubevirt/pkg/apimachinery/wait"
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	cmdv1 "kubevirt.io/kubevirt/pkg/handler-launcher-com/cmd/v1"
 	"kubevirt.io/kubevirt/pkg/hooks"
 	"kubevirt.io/kubevirt/pkg/pointer"
 	"kubevirt.io/kubevirt/pkg/util"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/metadata"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/cli"
@@ -228,7 +228,7 @@ func (l *LibvirtDomainManager) prepareMigrationTarget(
 		logger.Reason(err).Error("failed to create the migration sockets directory")
 		return err
 	}
-	if err := diskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(migrationSocketsPath); err != nil {
+	if err := rootful.ChownToQemu(migrationSocketsPath); err != nil {
 		logger.Reason(err).Error("failed to change ownership on migration sockets directory")
 		return err
 	}

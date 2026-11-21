@@ -21,14 +21,29 @@ package rootful
 
 import (
 	"os"
+	"path/filepath"
 
+	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/util"
 )
 
 // ChownToQemu sets the QEMU file owner and group when running as root.
+// It rejects symlinks in the path and changes ownership on the opened file.
 func ChownToQemu(path string) error {
 	if os.Geteuid() != 0 {
 		return nil
 	}
-	return os.Chown(path, util.NonRootUID, util.NonRootUID)
+	if path == "" {
+		return &os.PathError{Op: "chown", Path: path, Err: os.ErrNotExist}
+	}
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	file, err := safepath.NewFileNoFollow(absolutePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return os.Chown(file.SafePath(), util.NonRootUID, util.NonRootUID)
 }

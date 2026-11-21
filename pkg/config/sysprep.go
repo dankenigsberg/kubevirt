@@ -27,7 +27,7 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 // Assuming windows does not care what's the exact label.
@@ -103,7 +103,7 @@ func createIsoImageAndSetFileOwnership(volumeName string, filesPath []string, si
 	if err := createIsoConfigImage(disk, sysprepVolumeLabel, filesPath, size); err != nil {
 		return err
 	}
-	if err := ephemeraldiskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(disk); err != nil {
+	if err := rootful.ChownToQemu(disk); err != nil {
 		return err
 	}
 

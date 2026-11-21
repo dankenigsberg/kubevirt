@@ -27,8 +27,8 @@ import (
 	"os"
 	"path/filepath"
 
-	dutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	kfs "kubevirt.io/kubevirt/pkg/os/fs"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 type Cache struct {
@@ -100,7 +100,7 @@ func writeToCachedFile(fs cacheFS, obj any, fileName string) error {
 	if err != nil {
 		return fmt.Errorf("error writing cached object: %v", err)
 	}
-	return dutils.DefaultOwnershipManager.UnsafeSetFileOwnership(fileName)
+	return rootful.ChownToQemu(fileName)
 }
 
 func readFromCachedFile(fs cacheFS, obj any, fileName string) error {

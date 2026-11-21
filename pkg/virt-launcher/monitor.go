@@ -33,8 +33,8 @@ import (
 
 	"kubevirt.io/client-go/log"
 
-	diskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 	"kubevirt.io/kubevirt/pkg/util"
+	"kubevirt.io/kubevirt/pkg/util/rootful"
 )
 
 type OnShutdownCallback func(pid int)
@@ -61,7 +61,7 @@ func InitializePrivateDirectories(baseDir string) error {
 	if err := util.MkdirAllWithNosec(baseDir); err != nil {
 		return err
 	}
-	if err := diskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(baseDir); err != nil {
+	if err := rootful.ChownToQemu(baseDir); err != nil {
 		return err
 	}
 	return nil
@@ -82,7 +82,7 @@ func InitializeConsoleLogFile(baseDir string) error {
 	} else if err != nil {
 		return err
 	}
-	if err = diskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(logPath); err != nil {
+	if err = rootful.ChownToQemu(logPath); err != nil {
 		return err
 	}
 	return nil
@@ -99,7 +99,7 @@ func InitializeDisksDirectories(baseDir string) error {
 	if err != nil {
 		return err
 	}
-	err = diskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(baseDir)
+	err = rootful.ChownToQemu(baseDir)
 	if err != nil {
 		return err
 	}

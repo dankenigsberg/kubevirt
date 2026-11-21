@@ -54,17 +54,3 @@ func (mr *MockOwnershipManagerInterfaceMockRecorder) SetFileOwnership(file any) 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetFileOwnership", reflect.TypeOf((*MockOwnershipManagerInterface)(nil).SetFileOwnership), file)
 }
-
-// UnsafeSetFileOwnership mocks base method.
-func (m *MockOwnershipManagerInterface) UnsafeSetFileOwnership(file string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UnsafeSetFileOwnership", file)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UnsafeSetFileOwnership indicates an expected call of UnsafeSetFileOwnership.
-func (mr *MockOwnershipManagerInterfaceMockRecorder) UnsafeSetFileOwnership(file any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnsafeSetFileOwnership", reflect.TypeOf((*MockOwnershipManagerInterface)(nil).UnsafeSetFileOwnership), file)
-}

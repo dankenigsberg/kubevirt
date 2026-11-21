@@ -43,10 +43,6 @@ func MockDefaultOwnershipManager() {
 type nonOpManager struct {
 }
 
-func (no *nonOpManager) UnsafeSetFileOwnership(_ string) error {
-	return nil
-}
-
 func (no *nonOpManager) SetFileOwnership(_ *safepath.Path) error {
 	return nil
 }
@@ -56,10 +52,6 @@ func MockDefaultOwnershipManagerWithFailure() {
 }
 
 type failureManager struct {
-}
-
-func (no *failureManager) UnsafeSetFileOwnership(_ string) error {
-	panic("unexpected call to UnsafeSetFileOwnership")
 }
 
 func (no *failureManager) SetFileOwnership(_ *safepath.Path) error {
@@ -76,10 +68,10 @@ func (om *OwnershipManager) SetFileOwnership(file *safepath.Path) error {
 		return err
 	}
 	defer fd.Close()
-	return om.UnsafeSetFileOwnership(fd.SafePath())
+	return om.setFileOwnership(fd.SafePath())
 }
 
-func (om *OwnershipManager) UnsafeSetFileOwnership(file string) error {
+func (om *OwnershipManager) setFileOwnership(file string) error {
 	owner, err := user.Lookup(om.user)
 	if err != nil {
 		return fmt.Errorf("failed to look up user %s: %v", om.user, err)
@@ -123,7 +115,5 @@ func FileExists(path string) (bool, error) {
 }
 
 type OwnershipManagerInterface interface {
-	// Deprecated: UnsafeSetFileOwnership should not be used. Use SetFileOwnership instead.
-	UnsafeSetFileOwnership(file string) error
 	SetFileOwnership(file *safepath.Path) error
 }
