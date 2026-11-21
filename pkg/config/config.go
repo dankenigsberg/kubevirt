@@ -25,8 +25,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
-
 	"kubevirt.io/kubevirt/pkg/util"
 
 	v1 "kubevirt.io/api/core/v1"
@@ -222,10 +220,18 @@ func createIsoDisksForConfigVolumes(vmi *v1.VirtualMachineInstance, emptyIso boo
 			return err
 		}
 
-		if err := ephemeraldiskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(isoPath); err != nil {
+		if err := chownToQEMU(isoPath); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// chownToQEMU sets ISO ownership when virt-launcher runs as root.
+func chownToQEMU(path string) error {
+	if os.Geteuid() != 0 {
+		return nil
+	}
+	return os.Chown(path, util.NonRootUID, util.NonRootUID)
 }

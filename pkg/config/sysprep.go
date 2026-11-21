@@ -26,8 +26,6 @@ import (
 	"strings"
 
 	v1 "kubevirt.io/api/core/v1"
-
-	ephemeraldiskutils "kubevirt.io/kubevirt/pkg/ephemeral-disk-utils"
 )
 
 // Assuming windows does not care what's the exact label.
@@ -103,7 +101,7 @@ func createIsoImageAndSetFileOwnership(volumeName string, filesPath []string, si
 	if err := createIsoConfigImage(disk, sysprepVolumeLabel, filesPath, size); err != nil {
 		return err
 	}
-	if err := ephemeraldiskutils.DefaultOwnershipManager.UnsafeSetFileOwnership(disk); err != nil {
+	if err := chownToQEMU(disk); err != nil {
 		return err
 	}
 
