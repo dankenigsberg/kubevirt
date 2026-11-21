@@ -17,7 +17,7 @@
  *
  */
 
-package config
+package config_test
 
 import (
 	"os"
@@ -28,6 +28,7 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
+	"kubevirt.io/kubevirt/pkg/config"
 	"kubevirt.io/kubevirt/pkg/libvmi"
 )
 
@@ -36,19 +37,19 @@ var _ = Describe("ServiceAccount", func() {
 	BeforeEach(func() {
 		var err error
 
-		ServiceAccountSourceDir, err = os.MkdirTemp("", "serviceaccount")
+		config.ServiceAccountSourceDir, err = os.MkdirTemp("", "serviceaccount")
 		Expect(err).NotTo(HaveOccurred())
-		os.MkdirAll(ServiceAccountSourceDir, 0755)
-		os.OpenFile(filepath.Join(ServiceAccountSourceDir, "token"), os.O_RDONLY|os.O_CREATE, 0666)
-		os.OpenFile(filepath.Join(ServiceAccountSourceDir, "namespace"), os.O_RDONLY|os.O_CREATE, 0666)
+		os.MkdirAll(config.ServiceAccountSourceDir, 0755)
+		os.OpenFile(filepath.Join(config.ServiceAccountSourceDir, "token"), os.O_RDONLY|os.O_CREATE, 0666)
+		os.OpenFile(filepath.Join(config.ServiceAccountSourceDir, "namespace"), os.O_RDONLY|os.O_CREATE, 0666)
 
-		ServiceAccountDiskDir, err = os.MkdirTemp("", "serviceaccount-disk")
+		config.ServiceAccountDiskDir, err = os.MkdirTemp("", "serviceaccount-disk")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(ServiceAccountSourceDir)
-		os.RemoveAll(ServiceAccountDiskDir)
+		os.RemoveAll(config.ServiceAccountSourceDir)
+		os.RemoveAll(config.ServiceAccountDiskDir)
 	})
 
 	It("Should create a new service account iso disk", func() {
@@ -56,13 +57,12 @@ var _ = Describe("ServiceAccount", func() {
 			libvmi.WithServiceAccountDisk("testaccount"),
 		)
 
-		err := CreateServiceAccountDisk(vmi, false)
-		Expect(err).NotTo(HaveOccurred())
-		_, err = os.Stat(filepath.Join(ServiceAccountDiskDir, ServiceAccountDiskName))
-		Expect(err).NotTo(HaveOccurred())
+		requireXorrisofs()
+		Expect(config.CreateServiceAccountDisk(vmi, false)).To(Succeed())
+		expectISO(config.GetServiceAccountDiskPath(), "cfgdata")
 	})
 
-	It("Should create a new service account iso disk without a Disk device", func() {
+	It("Should not create a new service account iso disk without a Disk device", func() {
 		vmi := libvmi.New()
 		vmi.Spec.Volumes = append(vmi.Spec.Volumes, v1.Volume{
 			Name: "serviceaccount-volume",
@@ -73,9 +73,9 @@ var _ = Describe("ServiceAccount", func() {
 			},
 		})
 
-		err := CreateServiceAccountDisk(vmi, false)
+		err := config.CreateServiceAccountDisk(vmi, false)
 		Expect(err).NotTo(HaveOccurred())
-		files, _ := os.ReadDir(ServiceAccountDiskDir)
+		files, _ := os.ReadDir(config.ServiceAccountDiskDir)
 		Expect(files).To(BeEmpty())
 	})
 })

@@ -30,12 +30,8 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 )
 
-type (
-	// Type represents allowed config types like ConfigMap or Secret
-	Type string
-
-	isoCreationFunc func(output string, volID string, files []string) error
-)
+// Type represents allowed config types like ConfigMap or Secret.
+type Type string
 
 const (
 	// ConfigMap respresents a configmap type,
@@ -82,27 +78,34 @@ var (
 	ServiceAccountDiskDir = filepath.Join(mountBaseDir, "service-account-disk")
 	// ServiceAccountDiskName represents the name of the ServiceAccount iso image
 	ServiceAccountDiskName = "service-account.iso"
-
-	createISOImage      = defaultCreateIsoImage
-	createEmptyISOImage = defaultCreateEmptyIsoImage
 )
 
-// The unit test suite uses this function
-func setIsoCreationFunction(isoFunc isoCreationFunc) {
-	createISOImage = isoFunc
+// ISOLayout describes the volume label and graft points of a config ISO.
+type ISOLayout struct {
+	Label       string
+	GraftPoints []string
+}
+
+// BuildISOLayout maps mounted directory entries to ISO graft points without
+// reading or writing any files.
+func BuildISOLayout(label, source string, entries []os.DirEntry) ISOLayout {
+	if label == "" {
+		label = "cfgdata"
+	}
+	layout := ISOLayout{Label: label}
+	for _, entry := range entries {
+		name := entry.Name()
+		layout.GraftPoints = append(layout.GraftPoints, name+"="+filepath.Join(source, name))
+	}
+	return layout
 }
 
 func getFilesLayout(dirPath string) ([]string, error) {
-	var filesPath []string
-	files, err := os.ReadDir(dirPath)
+	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		return nil, err
 	}
-	for _, file := range files {
-		fileName := file.Name()
-		filesPath = append(filesPath, fileName+"="+filepath.Join(dirPath, fileName))
-	}
-	return filesPath, nil
+	return BuildISOLayout("", dirPath, entries).GraftPoints, nil
 }
 
 func defaultCreateIsoImage(iso string, volID string, files []string) error {
@@ -161,9 +164,9 @@ func defaultCreateEmptyIsoImage(iso string, size int64) error {
 func createIsoConfigImage(output string, volID string, files []string, size int64) error {
 	var err error
 	if size == 0 {
-		err = createISOImage(output, volID, files)
+		err = defaultCreateIsoImage(output, volID, files)
 	} else {
-		err = createEmptyISOImage(output, size)
+		err = defaultCreateEmptyIsoImage(output, size)
 	}
 	if err != nil {
 		return err

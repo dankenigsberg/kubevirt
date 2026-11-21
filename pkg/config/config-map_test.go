@@ -17,7 +17,7 @@
  *
  */
 
-package config
+package config_test
 
 import (
 	"os"
@@ -29,6 +29,7 @@ import (
 	k8sv1 "k8s.io/api/core/v1"
 	v1 "kubevirt.io/api/core/v1"
 
+	"kubevirt.io/kubevirt/pkg/config"
 	"kubevirt.io/kubevirt/pkg/libvmi"
 )
 
@@ -37,19 +38,19 @@ var _ = Describe("ConfigMap", func() {
 	BeforeEach(func() {
 		var err error
 
-		ConfigMapSourceDir, err = os.MkdirTemp("", "configmap")
+		config.ConfigMapSourceDir, err = os.MkdirTemp("", "configmap")
 		Expect(err).NotTo(HaveOccurred())
-		os.MkdirAll(filepath.Join(ConfigMapSourceDir, "configmap-volume", "test-dir"), 0755)
-		os.OpenFile(filepath.Join(ConfigMapSourceDir, "configmap-volume", "test-dir", "test-file1"), os.O_RDONLY|os.O_CREATE, 0666)
-		os.OpenFile(filepath.Join(ConfigMapSourceDir, "configmap-volume", "test-file2"), os.O_RDONLY|os.O_CREATE, 0666)
+		os.MkdirAll(filepath.Join(config.ConfigMapSourceDir, "configmap-volume", "test-dir"), 0755)
+		os.OpenFile(filepath.Join(config.ConfigMapSourceDir, "configmap-volume", "test-dir", "test-file1"), os.O_RDONLY|os.O_CREATE, 0666)
+		os.OpenFile(filepath.Join(config.ConfigMapSourceDir, "configmap-volume", "test-file2"), os.O_RDONLY|os.O_CREATE, 0666)
 
-		ConfigMapDisksDir, err = os.MkdirTemp("", "configmap-disks")
+		config.ConfigMapDisksDir, err = os.MkdirTemp("", "configmap-disks")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(ConfigMapSourceDir)
-		os.RemoveAll(ConfigMapDisksDir)
+		os.RemoveAll(config.ConfigMapSourceDir)
+		os.RemoveAll(config.ConfigMapDisksDir)
 	})
 
 	It("Should create a new config map iso disk", func() {
@@ -57,10 +58,9 @@ var _ = Describe("ConfigMap", func() {
 			libvmi.WithConfigMapDisk("test-config", "configmap-volume"),
 		)
 
-		err := CreateConfigMapDisks(vmi, false)
-		Expect(err).NotTo(HaveOccurred())
-		_, err = os.Stat(filepath.Join(ConfigMapDisksDir, "configmap-volume.iso"))
-		Expect(err).NotTo(HaveOccurred())
+		requireXorrisofs()
+		Expect(config.CreateConfigMapDisks(vmi, false)).To(Succeed())
+		expectISO(config.GetConfigMapDiskPath("configmap-volume"), "cfgdata")
 	})
 
 	It("Should not create a new config map iso disk without a Disk device", func() {
@@ -77,9 +77,9 @@ var _ = Describe("ConfigMap", func() {
 			},
 		})
 
-		err := CreateConfigMapDisks(vmi, false)
+		err := config.CreateConfigMapDisks(vmi, false)
 		Expect(err).NotTo(HaveOccurred())
-		files, _ := os.ReadDir(ConfigMapDisksDir)
+		files, _ := os.ReadDir(config.ConfigMapDisksDir)
 		Expect(files).To(BeEmpty())
 	})
 })

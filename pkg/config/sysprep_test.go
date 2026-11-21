@@ -17,7 +17,7 @@
  *
  */
 
-package config
+package config_test
 
 import (
 	"os"
@@ -28,12 +28,13 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
+	"kubevirt.io/kubevirt/pkg/config"
 	"kubevirt.io/kubevirt/pkg/libvmi"
 )
 
 func createFiles(filenames []string) {
 	for _, f := range filenames {
-		f, err := os.OpenFile(filepath.Join(SysprepSourceDir, "sysprep-volume", f), os.O_RDONLY|os.O_CREATE, 0666)
+		f, err := os.OpenFile(filepath.Join(config.SysprepSourceDir, "sysprep-volume", f), os.O_RDONLY|os.O_CREATE, 0666)
 		Expect(err).NotTo(HaveOccurred())
 		if f != nil {
 			f.Close()
@@ -46,17 +47,17 @@ var _ = Describe("SysprepConfigMap", func() {
 	BeforeEach(func() {
 		var err error
 
-		SysprepSourceDir, err = os.MkdirTemp("", "sysprep")
+		config.SysprepSourceDir, err = os.MkdirTemp("", "sysprep")
 		Expect(err).NotTo(HaveOccurred())
-		os.MkdirAll(filepath.Join(SysprepSourceDir, "sysprep-volume"), 0755)
+		os.MkdirAll(filepath.Join(config.SysprepSourceDir, "sysprep-volume"), 0755)
 
-		SysprepDisksDir, err = os.MkdirTemp("", "sysprep-disks")
+		config.SysprepDisksDir, err = os.MkdirTemp("", "sysprep-disks")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(SysprepSourceDir)
-		os.RemoveAll(SysprepDisksDir)
+		os.RemoveAll(config.SysprepSourceDir)
+		os.RemoveAll(config.SysprepDisksDir)
 	})
 
 	vmiConfigMap := libvmi.New(
@@ -67,13 +68,12 @@ var _ = Describe("SysprepConfigMap", func() {
 		libvmi.WithSysprepSecret("sysprep-volume", "secret-config"),
 	)
 
-	DescribeTable("Assert successful sysprep ISO creation with CreateSysprepDisks",
+	DescribeTable("Create a Sysprep ISO with valid answer files",
 		func(vmi *v1.VirtualMachineInstance, filenames []string) {
 			createFiles(filenames)
-			err := CreateSysprepDisks(vmi, false)
-			Expect(err).NotTo(HaveOccurred())
-			_, err = os.Stat(filepath.Join(SysprepDisksDir, "sysprep-volume.iso"))
-			Expect(err).NotTo(HaveOccurred())
+			requireXorrisofs()
+			Expect(config.CreateSysprepDisks(vmi, false)).To(Succeed())
+			expectISO(config.GetSysprepDiskPath("sysprep-volume"), "unattendCD")
 		},
 		Entry("Should pass when using a configMap and finding valid filenames", vmiConfigMap, []string{"AutounattenD.xml", "UnattenD.xml"}),
 		Entry("Should pass when using a configMap and finding only autoattend.xml", vmiConfigMap, []string{"Autounattend.xml"}),
@@ -86,7 +86,7 @@ var _ = Describe("SysprepConfigMap", func() {
 	DescribeTable("Assert failures when creating sysprep ISO with CreateSysprepDisks",
 		func(vmi *v1.VirtualMachineInstance, filenames []string) {
 			createFiles(filenames)
-			err := CreateSysprepDisks(vmi, false)
+			err := config.CreateSysprepDisks(vmi, false)
 			Expect(err).To(HaveOccurred())
 		},
 		Entry("Should fail when using a configMap and finding no filenames", vmiConfigMap, []string{}),

@@ -16,66 +16,50 @@
  * Copyright The KubeVirt Authors.
  *
  */
-package config
+package config_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"kubevirt.io/kubevirt/pkg/config"
 )
 
-func mockCreateISOImage(output string, _ string, _ []string) error {
-	_, err := os.Create(output)
-	if err != nil {
-		panic(err)
+var _ = Describe("Config ISO planning and publication", func() {
+	It("preserves the custom volume label and grafts projected volume symlinks", func() {
+		source := GinkgoT().TempDir()
+		Expect(os.Mkdir(filepath.Join(source, "..data"), 0700)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(source, "..data", "key"), []byte("value"), 0600)).To(Succeed())
+		Expect(os.Symlink("..data/key", filepath.Join(source, "key"))).To(Succeed())
+
+		entries, err := os.ReadDir(source)
+		Expect(err).NotTo(HaveOccurred())
+		layout := config.BuildISOLayout("custom", source, entries)
+		Expect(layout.Label).To(Equal("custom"))
+		Expect(layout.GraftPoints).To(Equal([]string{
+			"..data=" + filepath.Join(source, "..data"),
+			"key=" + filepath.Join(source, "key"),
+		}))
+	})
+
+})
+
+func requireXorrisofs() {
+	if _, err := exec.LookPath("xorrisofs"); err != nil {
+		Skip("xorrisofs is required to write an ISO")
 	}
-	return nil
 }
 
-var _ = BeforeSuite(func() {
-	setIsoCreationFunction(mockCreateISOImage)
-})
-
-var _ = Describe("Creating config images", func() {
-
-	Context("With creating file system layout", func() {
-		var tempConfDir string
-		var tempISODir string
-		var expectedLayout []string
-
-		BeforeEach(func() {
-			var err error
-			tempConfDir, err = os.MkdirTemp("", "config-dir")
-			Expect(err).NotTo(HaveOccurred())
-			tempISODir, err = os.MkdirTemp("", "iso-dir")
-			Expect(err).NotTo(HaveOccurred())
-			expectedLayout = []string{"test-dir=" + filepath.Join(tempConfDir, "test-dir"), "test-file2=" + filepath.Join(tempConfDir, "test-file2")}
-
-			os.Mkdir(filepath.Join(tempConfDir, "test-dir"), 0755)
-			os.OpenFile(filepath.Join(tempConfDir, "test-dir", "test-file1"), os.O_RDONLY|os.O_CREATE, 0666)
-			os.OpenFile(filepath.Join(tempConfDir, "test-file2"), os.O_RDONLY|os.O_CREATE, 0666)
-
-		})
-
-		AfterEach(func() {
-			os.RemoveAll(tempConfDir)
-			os.RemoveAll(tempISODir)
-		})
-
-		It("Should create an appropriate file system layout for iso image", func() {
-			fsLayout, err := getFilesLayout(tempConfDir)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(fsLayout).To(Equal(expectedLayout))
-		})
-
-		It("Should create an iso image", func() {
-			imgPath := filepath.Join(tempISODir, "volume1.iso")
-			err := createIsoConfigImage(imgPath, "", expectedLayout, 0)
-			Expect(err).NotTo(HaveOccurred())
-			_, err = os.Stat(imgPath)
-			Expect(err).NotTo(HaveOccurred())
-		})
-	})
-})
+func expectISO(path, label string) {
+	image, err := os.ReadFile(path)
+	Expect(err).NotTo(HaveOccurred())
+	const descriptor = 16 * 2048
+	Expect(len(image)).To(BeNumerically(">=", descriptor+72))
+	Expect(string(image[descriptor+1 : descriptor+6])).To(Equal("CD001"))
+	Expect(strings.TrimSpace(string(image[descriptor+40 : descriptor+72]))).To(Equal(label))
+}

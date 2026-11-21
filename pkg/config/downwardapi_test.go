@@ -17,7 +17,7 @@
  *
  */
 
-package config
+package config_test
 
 import (
 	"os"
@@ -31,6 +31,7 @@ import (
 
 	"kubevirt.io/client-go/api"
 
+	"kubevirt.io/kubevirt/pkg/config"
 	"kubevirt.io/kubevirt/pkg/libvmi"
 )
 
@@ -39,19 +40,19 @@ var _ = Describe("DownwardAPI", func() {
 	BeforeEach(func() {
 		var err error
 
-		DownwardAPISourceDir, err = os.MkdirTemp("", "downwardapi")
+		config.DownwardAPISourceDir, err = os.MkdirTemp("", "downwardapi")
 		Expect(err).NotTo(HaveOccurred())
-		os.MkdirAll(filepath.Join(DownwardAPISourceDir, "downwardapi-volume", "test-dir"), 0755)
-		os.OpenFile(filepath.Join(DownwardAPISourceDir, "downwardapi-volume", "test-dir", "test-file1"), os.O_RDONLY|os.O_CREATE, 0666)
-		os.OpenFile(filepath.Join(DownwardAPISourceDir, "downwardapi-volume", "test-file2"), os.O_RDONLY|os.O_CREATE, 0666)
+		os.MkdirAll(filepath.Join(config.DownwardAPISourceDir, "downwardapi-volume", "test-dir"), 0755)
+		os.OpenFile(filepath.Join(config.DownwardAPISourceDir, "downwardapi-volume", "test-dir", "test-file1"), os.O_RDONLY|os.O_CREATE, 0666)
+		os.OpenFile(filepath.Join(config.DownwardAPISourceDir, "downwardapi-volume", "test-file2"), os.O_RDONLY|os.O_CREATE, 0666)
 
-		DownwardAPIDisksDir, err = os.MkdirTemp("", "downwardapi-disks")
+		config.DownwardAPIDisksDir, err = os.MkdirTemp("", "downwardapi-disks")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(DownwardAPISourceDir)
-		os.RemoveAll(DownwardAPIDisksDir)
+		os.RemoveAll(config.DownwardAPISourceDir)
+		os.RemoveAll(config.DownwardAPIDisksDir)
 	})
 
 	It("Should create a new downwardapi iso disk", func() {
@@ -59,13 +60,12 @@ var _ = Describe("DownwardAPI", func() {
 			libvmi.WithDownwardAPIDisk("downwardapi-volume"),
 		)
 
-		err := CreateDownwardAPIDisks(vmi, false)
-		Expect(err).NotTo(HaveOccurred())
-		_, err = os.Stat(filepath.Join(DownwardAPIDisksDir, "downwardapi-volume.iso"))
-		Expect(err).NotTo(HaveOccurred())
+		requireXorrisofs()
+		Expect(config.CreateDownwardAPIDisks(vmi, false)).To(Succeed())
+		expectISO(config.GetDownwardAPIDiskPath("downwardapi-volume"), "cfgdata")
 	})
 
-	It("Should create a new downwardapi iso disk without a Disk device", func() {
+	It("Should not create a new downwardapi iso disk without a Disk device", func() {
 		vmi := api.NewMinimalVMI("fake-vmi")
 		vmi.Spec.Volumes = append(vmi.Spec.Volumes, v1.Volume{
 			Name: "downwardapi-volume",
@@ -83,9 +83,9 @@ var _ = Describe("DownwardAPI", func() {
 			},
 		})
 
-		err := CreateDownwardAPIDisks(vmi, false)
+		err := config.CreateDownwardAPIDisks(vmi, false)
 		Expect(err).NotTo(HaveOccurred())
-		files, _ := os.ReadDir(DownwardAPIDisksDir)
+		files, _ := os.ReadDir(config.DownwardAPIDisksDir)
 		Expect(files).To(BeEmpty())
 	})
 })

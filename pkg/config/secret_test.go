@@ -17,7 +17,7 @@
  *
  */
 
-package config
+package config_test
 
 import (
 	"os"
@@ -28,6 +28,7 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
+	"kubevirt.io/kubevirt/pkg/config"
 	"kubevirt.io/kubevirt/pkg/libvmi"
 )
 
@@ -36,19 +37,19 @@ var _ = Describe("Secret", func() {
 	BeforeEach(func() {
 		var err error
 
-		SecretSourceDir, err = os.MkdirTemp("", "secret")
+		config.SecretSourceDir, err = os.MkdirTemp("", "secret")
 		Expect(err).NotTo(HaveOccurred())
-		os.MkdirAll(filepath.Join(SecretSourceDir, "secret-volume", "test-dir"), 0755)
-		os.OpenFile(filepath.Join(SecretSourceDir, "secret-volume", "test-dir", "test-file1"), os.O_RDONLY|os.O_CREATE, 0666)
-		os.OpenFile(filepath.Join(SecretSourceDir, "secret-volume", "test-file2"), os.O_RDONLY|os.O_CREATE, 0666)
+		os.MkdirAll(filepath.Join(config.SecretSourceDir, "secret-volume", "test-dir"), 0755)
+		os.OpenFile(filepath.Join(config.SecretSourceDir, "secret-volume", "test-dir", "test-file1"), os.O_RDONLY|os.O_CREATE, 0666)
+		os.OpenFile(filepath.Join(config.SecretSourceDir, "secret-volume", "test-file2"), os.O_RDONLY|os.O_CREATE, 0666)
 
-		SecretDisksDir, err = os.MkdirTemp("", "secret-disks")
+		config.SecretDisksDir, err = os.MkdirTemp("", "secret-disks")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(SecretSourceDir)
-		os.RemoveAll(SecretDisksDir)
+		os.RemoveAll(config.SecretSourceDir)
+		os.RemoveAll(config.SecretDisksDir)
 	})
 
 	It("Should create a new secret iso disk", func() {
@@ -56,10 +57,9 @@ var _ = Describe("Secret", func() {
 			libvmi.WithSecretDisk("test-secret", "secret-volume"),
 		)
 
-		err := CreateSecretDisks(vmi, false)
-		Expect(err).NotTo(HaveOccurred())
-		_, err = os.Stat(filepath.Join(SecretDisksDir, "secret-volume.iso"))
-		Expect(err).NotTo(HaveOccurred())
+		requireXorrisofs()
+		Expect(config.CreateSecretDisks(vmi, false)).To(Succeed())
+		expectISO(config.GetSecretDiskPath("secret-volume"), "cfgdata")
 	})
 
 	It("Should not create a new secret iso disk without a Disk device", func() {
@@ -74,9 +74,9 @@ var _ = Describe("Secret", func() {
 			},
 		})
 
-		err := CreateSecretDisks(vmi, false)
+		err := config.CreateSecretDisks(vmi, false)
 		Expect(err).NotTo(HaveOccurred())
-		files, _ := os.ReadDir(SecretDisksDir)
+		files, _ := os.ReadDir(config.SecretDisksDir)
 		Expect(files).To(BeEmpty())
 	})
 })
