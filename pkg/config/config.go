@@ -151,16 +151,16 @@ func chownToQEMU(path string) error {
 	return os.Chown(path, util.NonRootUID, util.NonRootUID)
 }
 
-func findIsoSize(vmi *v1.VirtualMachineInstance, volumeName string, emptyIso bool) (int64, error) {
-	if !emptyIso {
-		return 0, nil
-	}
+func planPlaceholder(vmi *v1.VirtualMachineInstance, volumeName, output string) (isoPlan, error) {
 	for _, status := range vmi.Status.VolumeStatus {
 		if status.Name == volumeName {
-			return status.Size, nil
+			if status.Size < 0 {
+				return isoPlan{}, fmt.Errorf("invalid ISO size %d for volume %s", status.Size, volumeName)
+			}
+			return isoPlan{output: output, placeholder: true, size: status.Size}, nil
 		}
 	}
-	return 0, fmt.Errorf("failed to find the status of volume %s", volumeName)
+	return isoPlan{}, fmt.Errorf("failed to find the status of volume %s", volumeName)
 }
 
 type volumeInfo interface {
@@ -188,16 +188,15 @@ func configVolumesForDisks(vmi *v1.VirtualMachineInstance, info volumeInfo) []v1
 
 func planConfigISO(vmi *v1.VirtualMachineInstance, volume *v1.Volume, emptyIso bool, info volumeInfo) (isoPlan, error) {
 	output := info.getIsoPath(volume)
+	if emptyIso {
+		return planPlaceholder(vmi, volume.Name, output)
+	}
 	source := info.getSourcePath(volume)
 	entries, err := os.ReadDir(source)
 	if err != nil {
 		return isoPlan{}, err
 	}
-	size, err := findIsoSize(vmi, volume.Name, emptyIso)
-	if err != nil {
-		return isoPlan{}, err
-	}
-	return isoPlan{output: output, layout: BuildISOLayout(info.getLabel(volume), source, entries), placeholder: size != 0, size: size}, nil
+	return isoPlan{output: output, layout: BuildISOLayout(info.getLabel(volume), source, entries)}, nil
 }
 
 func createIsoDisksForConfigVolumes(vmi *v1.VirtualMachineInstance, emptyIso bool, info volumeInfo) error {

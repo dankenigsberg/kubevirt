@@ -50,16 +50,34 @@ var _ = Describe("Config ISO planning and publication", func() {
 		}))
 	})
 
+	DescribeTable("creates a migration placeholder without a mounted source",
+		func(size int64) {
+			useConfigMapPaths(GinkgoT().TempDir())
+
+			vmi := libvmi.New(libvmi.WithConfigMapDisk("config", "volume"))
+			Expect(config.CreateConfigMapDisks(vmi, true)).To(MatchError("failed to find the status of volume volume"))
+			vmi.Status.VolumeStatus = []v1.VolumeStatus{{Name: "volume", Size: size}}
+
+			Expect(config.CreateConfigMapDisks(vmi, true)).To(Succeed())
+			data, err := os.ReadFile(config.GetConfigMapDiskPath("volume"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(data).To(HaveLen(int(size)))
+			Expect(data).To(BeEquivalentTo(make([]byte, size)))
+			Expect(os.ReadDir(config.ConfigMapDisksDir)).To(HaveLen(1))
+		},
+		Entry("with a positive size", int64(512)),
+		Entry("with a zero size", int64(0)),
+	)
+
 	It("cleans staging files when publication fails", func() {
 		dir := GinkgoT().TempDir()
 		useConfigMapPaths(dir)
-		Expect(os.MkdirAll(config.GetConfigMapSourcePath("volume"), 0700)).To(Succeed())
 		output := config.GetConfigMapDiskPath("volume")
 		Expect(os.Mkdir(output, 0700)).To(Succeed())
 		vmi := libvmi.New(libvmi.WithConfigMapDisk("config", "volume"))
 		vmi.Status.VolumeStatus = []v1.VolumeStatus{{Name: "volume", Size: 16}}
 		Expect(config.CreateConfigMapDisks(vmi, true)).To(HaveOccurred())
-		Expect(os.ReadDir(dir)).To(HaveLen(2))
+		Expect(os.ReadDir(dir)).To(HaveLen(1))
 		Expect(os.Stat(output)).To(Satisfy(func(info os.FileInfo) bool { return info.IsDir() }))
 	})
 })

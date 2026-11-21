@@ -81,9 +81,8 @@ func shouldCreateSysprepDisk(volumeSysprep *v1.SysprepSource) bool {
 
 func planSysprepISO(vmi *v1.VirtualMachineInstance, volumeName string, emptyIso bool) (isoPlan, error) {
 	output := GetSysprepDiskPath(volumeName)
-	size, err := findIsoSize(vmi, volumeName, emptyIso)
-	if err != nil {
-		return isoPlan{}, err
+	if emptyIso {
+		return planPlaceholder(vmi, volumeName, output)
 	}
 	source := GetSysprepSourcePath(volumeName)
 	entries, err := os.ReadDir(source)
@@ -93,5 +92,5 @@ func planSysprepISO(vmi *v1.VirtualMachineInstance, volumeName string, emptyIso 
 	if err := validateUnattendPresence(entries); err != nil {
 		return isoPlan{}, err
 	}
-	return isoPlan{output: output, layout: BuildISOLayout(sysprepVolumeLabel, source, entries), placeholder: size != 0, size: size}, nil
+	return isoPlan{output: output, layout: BuildISOLayout(sysprepVolumeLabel, source, entries)}, nil
 }
